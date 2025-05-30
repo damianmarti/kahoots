@@ -19,6 +19,7 @@ interface StudentSummary {
   last_name?: string;
   kahootsApproved: number;
   kahootsFailed: number;
+  kahootsNotPlayed: number;
   percentApproved: number;
   approved: boolean;
 }
@@ -29,6 +30,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Missing cuatrimestre' });
   }
   try {
+    // Get all kahoot names for the cuatrimestre
+    const kahootNamesResult = await pool.query(
+      'SELECT DISTINCT kahoot_name FROM kahoot_results WHERE cuatrimestre = $1',
+      [cuatrimestre]
+    );
+    const allKahootNames = kahootNamesResult.rows.map((row: any) => row.kahoot_name);
+    const totalKahoots = allKahootNames.length;
+
     const result = await pool.query(
       `SELECT k.kahoot_name, k.padron, s.first_name, s.last_name, k.correct_answers, k.incorrect_answers
        FROM kahoot_results k
@@ -62,26 +71,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
     });
     // Student summary
-    const studentMap: Record<string, { first_name?: string; last_name?: string; approved: number; failed: number; total: number }> = {};
+    const studentMap: Record<string, { first_name?: string; last_name?: string; approved: number; failed: number; played: Set<string> }> = {};
     for (const row of result.rows) {
       const padron = row.padron;
       const correct = row.correct_answers;
       const incorrect = row.incorrect_answers;
       const total = correct + incorrect;
       const isApproved = total > 0 && (correct / total) >= 0.6;
-      if (!studentMap[padron]) studentMap[padron] = { first_name: row.first_name, last_name: row.last_name, approved: 0, failed: 0, total: 0 };
+      if (!studentMap[padron]) studentMap[padron] = { first_name: row.first_name, last_name: row.last_name, approved: 0, failed: 0, played: new Set() };
       if (isApproved) studentMap[padron].approved++;
       else studentMap[padron].failed++;
-      studentMap[padron].total++;
+      studentMap[padron].played.add(row.kahoot_name);
     }
     const studentsSummary: StudentSummary[] = Object.entries(studentMap).map(([padron, stats]) => {
-      const percentApproved = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
+      const kahootsPlayed = stats.played.size;
+      const kahootsNotPlayed = totalKahoots - kahootsPlayed;
+      const percentApproved = totalKahoots > 0 ? Math.round((stats.approved / totalKahoots) * 100) : 0;
       return {
         padron,
         first_name: stats.first_name,
         last_name: stats.last_name,
         kahootsApproved: stats.approved,
         kahootsFailed: stats.failed,
+        kahootsNotPlayed,
         percentApproved,
         approved: percentApproved >= 60,
       };

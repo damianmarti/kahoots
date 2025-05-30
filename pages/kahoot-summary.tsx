@@ -25,6 +25,7 @@ const KahootSummaryPage: React.FC = () => {
   const [studentsSummary, setStudentsSummary] = useState<StudentSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [showMoreThanHalf, setShowMoreThanHalf] = useState(false);
+  const [allKahootNames, setAllKahootNames] = useState<string[]>([]);
 
   useEffect(() => {
     if (!cuatrimestre) return;
@@ -36,6 +37,13 @@ const KahootSummaryPage: React.FC = () => {
         setStudentsSummary(data.studentsSummary || []);
       })
       .finally(() => setLoading(false));
+  }, [cuatrimestre]);
+
+  useEffect(() => {
+    if (!cuatrimestre) return;
+    fetch(`/api/kahoot-names?cuatrimestre=${encodeURIComponent(cuatrimestre)}`)
+      .then(res => res.json())
+      .then(data => setAllKahootNames(data.kahootNames || []));
   }, [cuatrimestre]);
 
   const totalKahoots = summaries.length;
@@ -138,7 +146,14 @@ const KahootSummaryPage: React.FC = () => {
                   </div>
                   <div style={{ minWidth: 120 }}>
                     <div style={{ fontSize: 15, color: '#888' }}>% Aprobados</div>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: percentStudentsApproved >= 60 ? '#388e3c' : '#d32f2f' }}>{percentStudentsApproved}%</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: percentStudentsApproved >= 60 ? '#388e3c' : '#d32f2f' }}>{
+                      allKahootNames.length > 0 && totalStudents > 0
+                        ? Math.round(
+                            (filteredStudents.reduce((acc, s) => acc + s.kahootsApproved, 0) /
+                              (totalStudents * allKahootNames.length)) * 100
+                          )
+                        : 0
+                    }%</div>
                   </div>
                 </div>
                 <div style={{ margin: '18px 0 0 0', width: '100%', textAlign: 'center' }}>
@@ -163,39 +178,48 @@ const KahootSummaryPage: React.FC = () => {
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>Nombre</th>
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>Kahoots aprobados</th>
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>Kahoots fallidos</th>
+                    <th style={{ border: '1px solid #ccc', padding: 10 }}>Kahoots no jugados</th>
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>% Aprobados</th>
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>Aprobado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStudents.map((s, i) => (
-                    <tr
-                      key={s.padron}
-                      style={{
-                        background: s.approved ? '#e8f5e9' : '#ffebee',
-                        transition: 'background 0.2s',
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.background = s.approved ? '#c8e6c9' : '#ffcdd2')}
-                      onMouseLeave={e => (e.currentTarget.style.background = s.approved ? '#e8f5e9' : '#ffebee')}
-                    >
-                      <td style={{ border: '1px solid #ccc', padding: 10 }}>
-                        <Link
-                          href={{ pathname: '/student-summary', query: { cuatrimestre, padron: s.padron } }}
-                          style={{ color: '#1976d2', textDecoration: 'none', fontWeight: 600 }}
-                          onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
-                          onMouseOut={e => (e.currentTarget.style.textDecoration = 'none')}
-                        >
-                          {s.padron}
-                        </Link>
-                      </td>
-                      <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.last_name || ''}</td>
-                      <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.first_name || ''}</td>
-                      <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.kahootsApproved}</td>
-                      <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.kahootsFailed}</td>
-                      <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.percentApproved}%</td>
-                      <td style={{ border: '1px solid #ccc', padding: 10, fontWeight: 600, color: s.approved ? '#388e3c' : '#d32f2f' }}>{s.approved ? 'Sí' : 'No'}</td>
-                    </tr>
-                  ))}
+                  {filteredStudents.map((s, i) => {
+                    const totalKahoots = allKahootNames.length;
+                    const kahootsPlayed = s.kahootsApproved + s.kahootsFailed;
+                    const kahootsNotPlayed = totalKahoots - kahootsPlayed;
+                    const percentApproved = totalKahoots > 0 ? Math.round((s.kahootsApproved / totalKahoots) * 100) : 0;
+                    const approved = percentApproved >= 60;
+                    return (
+                      <tr
+                        key={s.padron}
+                        style={{
+                          background: approved ? '#e8f5e9' : '#ffebee',
+                          transition: 'background 0.2s',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = approved ? '#c8e6c9' : '#ffcdd2')}
+                        onMouseLeave={e => (e.currentTarget.style.background = approved ? '#e8f5e9' : '#ffebee')}
+                      >
+                        <td style={{ border: '1px solid #ccc', padding: 10 }}>
+                          <Link
+                            href={{ pathname: '/student-summary', query: { cuatrimestre, padron: s.padron } }}
+                            style={{ color: '#1976d2', textDecoration: 'none', fontWeight: 600 }}
+                            onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
+                            onMouseOut={e => (e.currentTarget.style.textDecoration = 'none')}
+                          >
+                            {s.padron}
+                          </Link>
+                        </td>
+                        <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.last_name || ''}</td>
+                        <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.first_name || ''}</td>
+                        <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.kahootsApproved}</td>
+                        <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.kahootsFailed}</td>
+                        <td style={{ border: '1px solid #ccc', padding: 10 }}>{kahootsNotPlayed}</td>
+                        <td style={{ border: '1px solid #ccc', padding: 10 }}>{percentApproved}%</td>
+                        <td style={{ border: '1px solid #ccc', padding: 10, fontWeight: 600, color: approved ? '#388e3c' : '#d32f2f' }}>{approved ? 'Sí' : 'No'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

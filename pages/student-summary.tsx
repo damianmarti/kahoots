@@ -22,6 +22,7 @@ const StudentSummaryPage: React.FC = () => {
   const [kahoots, setKahoots] = useState<KahootPlayed[]>([]);
   const [loading, setLoading] = useState(false);
   const [autoShow, setAutoShow] = useState(false);
+  const [allKahootNames, setAllKahootNames] = useState<string[]>([]);
 
   // Get cuatrimestre and padron from query params
   useEffect(() => {
@@ -56,11 +57,21 @@ const StudentSummaryPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [cuatrimestre, selectedPadron]);
 
+  // Fetch all kahoot names for cuatrimestre
+  useEffect(() => {
+    if (!cuatrimestre) return;
+    fetch(`/api/kahoot-names?cuatrimestre=${encodeURIComponent(cuatrimestre)}`)
+      .then(res => res.json())
+      .then(data => setAllKahootNames(data.kahootNames || []));
+  }, [cuatrimestre]);
+
   // Summary
-  const totalKahoots = kahoots.length;
+  const playedKahootNames = kahoots.map(k => k.kahoot_name);
+  const notPlayedKahoots = allKahootNames.filter(name => !playedKahootNames.includes(name));
+  const totalKahootsInCuatrimestre = allKahootNames.length;
   const kahootsApproved = kahoots.filter(k => k.approved).length;
-  const kahootsFailed = totalKahoots - kahootsApproved;
-  const percentApproved = totalKahoots > 0 ? Math.round((kahootsApproved / totalKahoots) * 100) : 0;
+  const kahootsFailed = kahoots.length - kahootsApproved;
+  const percentApproved = totalKahootsInCuatrimestre > 0 ? Math.round((kahootsApproved / totalKahootsInCuatrimestre) * 100) : 0;
   const approved = percentApproved >= 60;
 
   return (
@@ -130,6 +141,10 @@ const StudentSummaryPage: React.FC = () => {
                 <div style={{ minWidth: 120 }}>
                   <div style={{ fontSize: 15, color: '#d32f2f' }}>✘ Kahoots fallidos</div>
                   <div style={{ fontSize: 28, fontWeight: 700, color: '#d32f2f' }}>{kahootsFailed}</div>
+                </div>
+                <div style={{ minWidth: 120 }}>
+                  <div style={{ fontSize: 15, color: '#888' }}>🕑 Kahoots no jugados</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#888' }}>{notPlayedKahoots.length}</div>
                 </div>
                 <div style={{ minWidth: 120 }}>
                   <div style={{ fontSize: 15, color: '#888' }}>% Aprobados</div>
