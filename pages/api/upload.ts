@@ -50,6 +50,7 @@ apiRoute.post(async (req: any, res) => {
     }
     const client = await pool.connect();
     try {
+      const rowsToInsert: { padron: string; correct: number; incorrect: number }[] = [];
       sheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return; // skip header
         const name = row.getCell(2).text || '';
@@ -57,11 +58,14 @@ apiRoute.post(async (req: any, res) => {
         if (!padron) return;
         const correct = parseInt(row.getCell(4).text, 10) || 0;
         const incorrect = parseInt(row.getCell(5).text, 10) || 0;
-        client.query(
+        rowsToInsert.push({ padron, correct, incorrect });
+      });
+      for (const { padron, correct, incorrect } of rowsToInsert) {
+        await client.query(
           'INSERT INTO kahoot_results (kahoot_name, cuatrimestre, padron, correct_answers, incorrect_answers) VALUES ($1, $2, $3, $4, $5)',
           [kahootName, cuatrimestre, padron, correct, incorrect]
         );
-      });
+      }
     } finally {
       client.release();
       fs.unlinkSync(req.file.path);
