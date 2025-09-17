@@ -76,6 +76,7 @@ const KahootSummaryPage: React.FC = () => {
           <label style={{ fontWeight: 500 }}>Cuatrimestre:</label><br />
           <select value={cuatrimestre} onChange={e => setCuatrimestre(e.target.value)} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}>
             <option value="2025-1">2025-1</option>
+            <option value="2025-2">2025-2</option>
           </select>
         </div>
         {loading && <div style={{ marginTop: 20 }}>Cargando resumen...</div>}
