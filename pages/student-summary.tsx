@@ -97,6 +97,8 @@ const StudentSummaryPage: React.FC = () => {
               <select value={cuatrimestre} onChange={e => setCuatrimestre(e.target.value)} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}>
                 <option value="2025-1">2025-1</option>
                 <option value="2025-2">2025-2</option>
+                <option value="2026-1">2026-1</option>
+                <option value="2026-2">2026-2</option>
               </select>
             </div>
             <div style={{ marginBottom: 18, width: '100%' }}>
