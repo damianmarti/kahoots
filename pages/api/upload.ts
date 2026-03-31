@@ -56,8 +56,8 @@ apiRoute.post(async (req: any, res) => {
         const name = row.getCell(2).text || '';
         const padron = extractPadron(name);
         if (!padron) return;
-        const correct = parseInt(row.getCell(4).text, 10) || 0;
-        const incorrect = parseInt(row.getCell(5).text, 10) || 0;
+        const correct = parseInt(row.getCell(5).text, 10) || 0;
+        const incorrect = parseInt(row.getCell(6).text, 10) || 0;
         rowsToInsert.push({ padron, correct, incorrect });
       });
       for (const { padron, correct, incorrect } of rowsToInsert) {
