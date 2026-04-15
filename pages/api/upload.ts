@@ -1,9 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import nextConnect from 'next-connect';
 import multer from 'multer';
-import ExcelJS from 'exceljs';
 import { Pool } from 'pg';
 import fs from 'fs';
+import csv from 'csv-parser';
 
 // PostgreSQL connection
 const pool = new Pool({
@@ -41,25 +41,30 @@ apiRoute.post(async (req: any, res) => {
     return res.status(401).json({ error: 'Contraseña incorrecta.' });
   }
   try {
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(req.file.path);
-    const sheet = workbook.getWorksheet('Final Scores');
-    if (!sheet) {
-      fs.unlinkSync(req.file.path);
-      return res.status(400).json({ error: 'Final Scores tab not found.' });
-    }
     const client = await pool.connect();
     try {
       const rowsToInsert: { padron: string; correct: number; incorrect: number }[] = [];
-      sheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return; // skip header
-        const name = row.getCell(1).text || '';  // Columna 1: Nombre
-        const padron = extractPadron(name);
-        if (!padron) return;
-        const correct = parseInt(row.getCell(2).text, 10) || 0;    // Columna 2: Correctas
-        const incorrect = parseInt(row.getCell(3).text, 10) || 0;  // Columna 3: Incorrectas
-        rowsToInsert.push({ padron, correct, incorrect });
+      
+      // Process CSV file
+      await new Promise<void>((resolve, reject) => {
+        fs.createReadStream(req.file.path)
+          .pipe(csv())
+          .on('data', (row) => {
+            const name = row.Nombre || '';
+            const padron = extractPadron(name);
+            if (!padron) return;
+            const correct = parseInt(row.Correctas, 10) || 0;
+            const incorrect = parseInt(row.Incorrectas, 10) || 0;
+            rowsToInsert.push({ padron, correct, incorrect });
+          })
+          .on('end', () => {
+            resolve();
+          })
+          .on('error', (error) => {
+            reject(error);
+          });
       });
+
       for (const { padron, correct, incorrect } of rowsToInsert) {
         await client.query(
           'INSERT INTO kahoot_results (kahoot_name, cuatrimestre, padron, correct_answers, incorrect_answers) VALUES ($1, $2, $3, $4, $5)',
