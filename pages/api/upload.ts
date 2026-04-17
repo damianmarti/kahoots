@@ -53,11 +53,11 @@ apiRoute.post(async (req: any, res) => {
       const rowsToInsert: { padron: string; correct: number; incorrect: number }[] = [];
       sheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return; // skip header
-        const name = row.getCell(1).text || '';  // Columna 1: Nombre
+        const name = row.getCell(2).text || '';
         const padron = extractPadron(name);
         if (!padron) return;
-        const correct = parseInt(row.getCell(2).text, 10) || 0;    // Columna 2: Correctas
-        const incorrect = parseInt(row.getCell(3).text, 10) || 0;  // Columna 3: Incorrectas
+        const correct = parseInt(row.getCell(5).text, 10) || 0;
+        const incorrect = parseInt(row.getCell(6).text, 10) || 0;
         rowsToInsert.push({ padron, correct, incorrect });
       });
       for (const { padron, correct, incorrect } of rowsToInsert) {
