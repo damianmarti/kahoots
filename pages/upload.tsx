@@ -94,8 +94,8 @@ const UploadPage: React.FC = () => {
             />
           </div>
           <div style={{ marginBottom: 24 }}>
-            <label style={{ fontWeight: 500 }}>Archivo CSV:</label><br />
-            <input type="file" accept=".csv" onChange={handleFileChange} required style={{ marginTop: 6 }} />
+            <label style={{ fontWeight: 500 }}>Archivo XLSX:</label><br />
+            <input type="file" accept=".xlsx" onChange={handleFileChange} required style={{ marginTop: 6 }} />
           </div>
           <button
             type="submit"
