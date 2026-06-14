@@ -1,9 +1,15 @@
 import type { AppProps } from 'next/app';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import React from 'react';
 import '../styles/globals.css';
 
 function MyApp({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+  // Las pantallas del juego en vivo son fullscreen, sin barra de navegación
+  if (router.pathname.startsWith('/play') || router.pathname.startsWith('/host')) {
+    return <Component {...pageProps} />;
+  }
   return (
     <>
       <nav style={{
@@ -29,6 +35,7 @@ function MyApp({ Component, pageProps }: AppProps) {
         <NavLink href="/results">Kahoots</NavLink>
         <NavLink href="/kahoot-summary">Resumen</NavLink>
         <NavLink href="/student-summary">Estudiantes</NavLink>
+        <NavLink href="/admin">Admin</NavLink>
       </nav>
       <Component {...pageProps} />
     </>
