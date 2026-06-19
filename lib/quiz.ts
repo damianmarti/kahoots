@@ -47,15 +47,16 @@ export function validateQuiz(quiz: any): string | null {
 export async function insertQuestions(client: PoolClient, quizId: number, questions: QuizQuestionInput[]) {
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
-    const { rows } = await client.query(
-      'INSERT INTO questions (quiz_id, position, type, text, image_url, time_limit) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [quizId, i, q.type, q.text.trim(), q.imageUrl || null, q.timeLimit]
-    );
+    const { rows } = await client.query('INSERT INTO questions (quiz_id, position, type, text, image_url, time_limit) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [
+      quizId,
+      i,
+      q.type,
+      q.text.trim(),
+      q.imageUrl || null,
+      q.timeLimit,
+    ]);
     for (let j = 0; j < q.options.length; j++) {
-      await client.query(
-        'INSERT INTO question_options (question_id, position, text, is_correct) VALUES ($1, $2, $3, $4)',
-        [rows[0].id, j, q.options[j].text.trim(), !!q.options[j].isCorrect]
-      );
+      await client.query('INSERT INTO question_options (question_id, position, text, is_correct) VALUES ($1, $2, $3, $4)', [rows[0].id, j, q.options[j].text.trim(), !!q.options[j].isCorrect]);
     }
   }
 }
@@ -70,7 +71,7 @@ export async function loadQuiz(client: PoolClient, quizId: number) {
      FROM questions q JOIN question_options o ON o.question_id = q.id
      WHERE q.quiz_id = $1
      GROUP BY q.id ORDER BY q.position`,
-    [quizId]
+    [quizId],
   );
   return {
     id: quiz.rows[0].id,

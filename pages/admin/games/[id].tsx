@@ -8,8 +8,12 @@ interface Report {
   game: { code: string; status: string; created_at: string; quiz_name: string; started_by_username: string };
   questions: { id: number; position: number; type: string; text: string; correctCount: number; answerCount: number; percentCorrect: number }[];
   players: {
-    padron: string; nickname: string; firstName: string | null; lastName: string | null;
-    score: number; rank: number;
+    padron: string;
+    nickname: string;
+    firstName: string | null;
+    lastName: string | null;
+    score: number;
+    rank: number;
     answers: ({ isCorrect: boolean; points: number; responseMs: number } | null)[];
   }[];
 }
@@ -41,7 +45,9 @@ const GameReport: React.FC<{ admin: AdminSession }> = () => {
   return (
     <div style={{ minHeight: '80vh', background: '#f6f8fa', padding: '0 16px 48px' }}>
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-        <Link href="/admin/games" legacyBehavior><a style={{ color: '#1976d2' }}>← Volver a juegos</a></Link>
+        <Link href="/admin/games" legacyBehavior>
+          <a style={{ color: '#1976d2' }}>← Volver a juegos</a>
+        </Link>
         <h2 style={{ fontSize: 28, fontWeight: 700, color: '#1976d2', margin: '16px 0 4px' }}>{game.quiz_name}</h2>
         <div style={{ color: '#666', marginBottom: 24 }}>
           Código {game.code} · Iniciado por {game.started_by_username} · {new Date(game.created_at).toLocaleString('es-AR')} · {players.length} jugadores
@@ -66,7 +72,9 @@ const GameReport: React.FC<{ admin: AdminSession }> = () => {
                   <tr key={q.id} style={{ borderTop: '1px solid #eee', background: best ? '#e8f5e9' : worst ? '#ffebee' : undefined }}>
                     <td style={{ padding: '10px 16px', color: '#888' }}>{q.position + 1}</td>
                     <td style={{ padding: '10px 16px' }}>{q.text}</td>
-                    <td style={{ padding: '10px 16px' }}>{q.correctCount}/{players.length}</td>
+                    <td style={{ padding: '10px 16px' }}>
+                      {q.correctCount}/{players.length}
+                    </td>
                     <td style={{ padding: '10px 16px', fontWeight: 700, color: q.percentCorrect >= 60 ? '#388e3c' : '#d32f2f' }}>
                       {q.percentCorrect}% {best ? '👍' : worst ? '👎' : ''}
                     </td>
@@ -88,7 +96,9 @@ const GameReport: React.FC<{ admin: AdminSession }> = () => {
                 <th style={{ padding: '10px 16px' }}>Alumno</th>
                 <th style={{ padding: '10px 16px' }}>Puntaje</th>
                 {questions.map(q => (
-                  <th key={q.id} title={q.text} style={{ padding: '10px 8px', textAlign: 'center' }}>P{q.position + 1}</th>
+                  <th key={q.id} title={q.text} style={{ padding: '10px 8px', textAlign: 'center' }}>
+                    P{q.position + 1}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -102,16 +112,17 @@ const GameReport: React.FC<{ admin: AdminSession }> = () => {
                     </Link>
                   </td>
                   <td style={{ padding: '10px 16px' }}>{p.nickname}</td>
-                  <td style={{ padding: '10px 16px', color: p.lastName ? undefined : '#bbb' }}>
-                    {p.lastName ? `${p.lastName}, ${p.firstName}` : 'no registrado'}
-                  </td>
+                  <td style={{ padding: '10px 16px', color: p.lastName ? undefined : '#bbb' }}>{p.lastName ? `${p.lastName}, ${p.firstName}` : 'no registrado'}</td>
                   <td style={{ padding: '10px 16px', fontWeight: 700, color: '#1976d2' }}>{p.score}</td>
                   {p.answers.map((a, i) => (
-                    <td key={i} title={a ? `${a.points} pts · ${(a.responseMs / 1000).toFixed(1)}s` : 'No respondió'}
-                        style={{ padding: '10px 8px', textAlign: 'center', fontSize: 17 }}>
-                      {a === null ? <span style={{ color: '#bbb' }}>—</span> : a.isCorrect
-                        ? <span style={{ color: '#388e3c', fontWeight: 700 }}>✓</span>
-                        : <span style={{ color: '#d32f2f', fontWeight: 700 }}>✗</span>}
+                    <td key={i} title={a ? `${a.points} pts · ${(a.responseMs / 1000).toFixed(1)}s` : 'No respondió'} style={{ padding: '10px 8px', textAlign: 'center', fontSize: 17 }}>
+                      {a === null ? (
+                        <span style={{ color: '#bbb' }}>—</span>
+                      ) : a.isCorrect ? (
+                        <span style={{ color: '#388e3c', fontWeight: 700 }}>✓</span>
+                      ) : (
+                        <span style={{ color: '#d32f2f', fontWeight: 700 }}>✗</span>
+                      )}
                     </td>
                   ))}
                 </tr>

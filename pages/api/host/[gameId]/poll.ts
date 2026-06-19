@@ -21,10 +21,7 @@ export default withAdmin(async (req, res) => {
   };
 
   if (game.status === 'lobby') {
-    const { rows: players } = await pool.query(
-      'SELECT padron, nickname FROM game_players WHERE game_id = $1 ORDER BY joined_at',
-      [gameId]
-    );
+    const { rows: players } = await pool.query('SELECT padron, nickname FROM game_players WHERE game_id = $1 ORDER BY joined_at', [gameId]);
     return res.status(200).json({ ...base, players });
   }
 
@@ -33,14 +30,16 @@ export default withAdmin(async (req, res) => {
       `SELECT o.id, o.text, o.is_correct,
               (SELECT COUNT(*) FROM game_answers a WHERE a.game_id = $2 AND a.question_id = o.question_id AND o.id = ANY(a.selected_options))::int AS answer_count
        FROM question_options o WHERE o.question_id = $1 ORDER BY o.position`,
-      [game.question_id, gameId]
+      [game.question_id, gameId],
     );
-    const { rows: [counts] } = await pool.query(
+    const {
+      rows: [counts],
+    } = await pool.query(
       `SELECT (SELECT COUNT(*) FROM game_answers a WHERE a.game_id = $1 AND a.question_id = $2)::int AS answered,
               (SELECT COUNT(*) FROM game_players p WHERE p.game_id = $1
                  AND p.last_seen_at > now() - ($3 || ' milliseconds')::interval)::int AS active,
               (SELECT COUNT(*) FROM game_players p WHERE p.game_id = $1)::int AS total`,
-      [gameId, game.question_id, ACTIVE_WINDOW_MS]
+      [gameId, game.question_id, ACTIVE_WINDOW_MS],
     );
     return res.status(200).json({
       ...base,

@@ -9,7 +9,7 @@ export default withAdmin(async (req, res, admin) => {
               (SELECT COUNT(*) FROM questions q WHERE q.quiz_id = z.id)::int AS question_count,
               EXISTS (SELECT 1 FROM games g WHERE g.quiz_id = z.id) AS has_games
        FROM quizzes z JOIN admin_users u ON u.id = z.created_by
-       ORDER BY z.id DESC`
+       ORDER BY z.id DESC`,
     );
     return res.status(200).json({ quizzes: rows });
   }
@@ -19,10 +19,7 @@ export default withAdmin(async (req, res, admin) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const { rows } = await client.query(
-        'INSERT INTO quizzes (name, created_by) VALUES ($1, $2) RETURNING id',
-        [req.body.name.trim(), admin.id]
-      );
+      const { rows } = await client.query('INSERT INTO quizzes (name, created_by) VALUES ($1, $2) RETURNING id', [req.body.name.trim(), admin.id]);
       await insertQuestions(client, rows[0].id, req.body.questions);
       await client.query('COMMIT');
       await audit(admin.id, 'quiz_create', 'quiz', rows[0].id, { name: req.body.name.trim() });

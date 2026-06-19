@@ -7,7 +7,7 @@ export default withAdmin(async (req, res, admin) => {
     const { rows } = await pool.query(
       `SELECT u.id, u.username, u.created_at, c.username AS created_by_username
        FROM admin_users u LEFT JOIN admin_users c ON c.id = u.created_by
-       ORDER BY u.id`
+       ORDER BY u.id`,
     );
     return res.status(200).json({ users: rows });
   }
@@ -20,10 +20,7 @@ export default withAdmin(async (req, res, admin) => {
     if (password.length < 8) return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
     try {
       const hash = await bcrypt.hash(password, 10);
-      const { rows } = await pool.query(
-        'INSERT INTO admin_users (username, password_hash, created_by) VALUES ($1, $2, $3) RETURNING id, username',
-        [normalizedUsername, hash, admin.id]
-      );
+      const { rows } = await pool.query('INSERT INTO admin_users (username, password_hash, created_by) VALUES ($1, $2, $3) RETURNING id, username', [normalizedUsername, hash, admin.id]);
       await audit(admin.id, 'admin_create', 'admin', rows[0].id, { username: normalizedUsername });
       return res.status(200).json({ user: rows[0] });
     } catch (err: any) {

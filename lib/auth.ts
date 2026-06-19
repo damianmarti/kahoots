@@ -21,9 +21,7 @@ function sign(payload: string): string {
 }
 
 export function createSessionToken(admin: AdminSession): string {
-  const payload = Buffer.from(
-    JSON.stringify({ id: admin.id, username: admin.username, exp: Date.now() + SESSION_DAYS * 86400_000 })
-  ).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ id: admin.id, username: admin.username, exp: Date.now() + SESSION_DAYS * 86400_000 })).toString('base64url');
   return `${payload}.${sign(payload)}`;
 }
 
@@ -80,15 +78,12 @@ export async function requireAdminSSR(ctx: GetServerSidePropsContext) {
   return { props: { admin } };
 }
 
-export async function audit(
-  adminId: number,
-  action: string,
-  entityType: string | null = null,
-  entityId: number | null = null,
-  details: object | null = null
-) {
-  await pool.query(
-    'INSERT INTO audit_logs (admin_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)',
-    [adminId, action, entityType, entityId, details ? JSON.stringify(details) : null]
-  );
+export async function audit(adminId: number, action: string, entityType: string | null = null, entityId: number | null = null, details: object | null = null) {
+  await pool.query('INSERT INTO audit_logs (admin_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)', [
+    adminId,
+    action,
+    entityType,
+    entityId,
+    details ? JSON.stringify(details) : null,
+  ]);
 }

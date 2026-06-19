@@ -21,12 +21,22 @@ const Countdown: React.FC<{ remainingMs: number; totalMs: number; size?: number 
   const color = fraction > 0.5 ? '#388e3c' : fraction > 0.2 ? '#f57c00' : '#d32f2f';
 
   return (
-    <div className={seconds <= 5 && seconds > 0 ? 'anim-pulse' : undefined} style={{
-      width: size, height: size, borderRadius: '50%',
-      background: '#fff', border: `6px solid ${color}`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.38, fontWeight: 800, color,
-    }}>
+    <div
+      className={seconds <= 5 && seconds > 0 ? 'anim-pulse' : undefined}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: '#fff',
+        border: `6px solid ${color}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: size * 0.38,
+        fontWeight: 800,
+        color,
+      }}
+    >
       {seconds}
     </div>
   );

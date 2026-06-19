@@ -13,7 +13,7 @@ export default withAdmin(async (req, res, admin) => {
     await pool.query(
       `INSERT INTO students (padron, first_name, last_name) VALUES ($1, $2, $3)
        ON CONFLICT (padron) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name`,
-      [String(padron).trim(), firstName.trim(), lastName.trim()]
+      [String(padron).trim(), firstName.trim(), lastName.trim()],
     );
     await audit(admin.id, 'student_create', 'students', null, { padron: String(padron).trim() });
     return res.status(200).json({ success: true });

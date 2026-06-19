@@ -51,7 +51,7 @@ apiRoute.post(async (req: any, res) => {
         await client.query(
           `INSERT INTO students (padron, first_name, last_name) VALUES ($1, $2, $3)
            ON CONFLICT (padron) DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name`,
-          [padron, firstName, lastName]
+          [padron, firstName, lastName],
         );
       }
       await client.query('COMMIT');

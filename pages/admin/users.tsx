@@ -20,7 +20,9 @@ const AdminUsers: React.FC<{ admin: AdminSession }> = () => {
   const [loading, setLoading] = useState(false);
 
   const load = () => {
-    fetch('/api/admin/users').then(r => r.json()).then(d => setUsers(d.users || []));
+    fetch('/api/admin/users')
+      .then(r => r.json())
+      .then(d => setUsers(d.users || []));
   };
   useEffect(load, []);
 
@@ -48,32 +50,52 @@ const AdminUsers: React.FC<{ admin: AdminSession }> = () => {
   return (
     <div style={{ minHeight: '80vh', background: '#f6f8fa', padding: '0 16px 48px' }}>
       <div style={{ maxWidth: 700, margin: '0 auto' }}>
-        <Link href="/admin" legacyBehavior><a style={{ color: '#1976d2' }}>← Volver</a></Link>
+        <Link href="/admin" legacyBehavior>
+          <a style={{ color: '#1976d2' }}>← Volver</a>
+        </Link>
         <h2 style={{ fontSize: 28, fontWeight: 700, color: '#1976d2', margin: '16px 0 24px' }}>Usuarios admin</h2>
 
         <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
           <h3 style={{ fontWeight: 600, marginBottom: 16 }}>Crear nuevo admin</h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: 160 }}>
-              <label style={{ fontWeight: 500 }}>Usuario:</label><br />
+              <label style={{ fontWeight: 500 }}>Usuario:</label>
+              <br />
               <input type="text" value={username} onChange={e => setUsername(e.target.value)} required style={inputStyle} />
             </div>
             <div style={{ flex: 1, minWidth: 160 }}>
-              <label style={{ fontWeight: 500 }}>Contraseña (mín. 8):</label><br />
+              <label style={{ fontWeight: 500 }}>Contraseña (mín. 8):</label>
+              <br />
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} style={inputStyle} />
             </div>
-            <button type="submit" disabled={loading} style={{
-              background: loading ? '#b3d1f7' : '#1976d2', color: '#fff', border: 'none', borderRadius: 6,
-              padding: '10px 20px', fontSize: 16, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-            }}>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                background: loading ? '#b3d1f7' : '#1976d2',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                padding: '10px 20px',
+                fontSize: 16,
+                fontWeight: 600,
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}
+            >
               Crear
             </button>
           </form>
           {message && (
-            <div style={{
-              marginTop: 16, color: message.ok ? '#388e3c' : '#d32f2f',
-              background: message.ok ? '#e8f5e9' : '#ffebee', borderRadius: 6, padding: '10px 18px', fontWeight: 500,
-            }}>
+            <div
+              style={{
+                marginTop: 16,
+                color: message.ok ? '#388e3c' : '#d32f2f',
+                background: message.ok ? '#e8f5e9' : '#ffebee',
+                borderRadius: 6,
+                padding: '10px 18px',
+                fontWeight: 500,
+              }}
+            >
               {message.text}
             </div>
           )}

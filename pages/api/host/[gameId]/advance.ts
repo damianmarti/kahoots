@@ -16,7 +16,7 @@ export default withAdmin(async (req, res) => {
         `UPDATE games SET status = 'title' WHERE id = $1 AND status = 'lobby'
            AND EXISTS (SELECT 1 FROM game_players WHERE game_id = $1)
          RETURNING id`,
-        [gameId]
+        [gameId],
       );
       if (!rows[0]) return res.status(409).json({ error: 'No se puede iniciar: no hay jugadores o el juego ya empezó.' });
       return res.status(200).json({ status: 'title' });
@@ -26,7 +26,7 @@ export default withAdmin(async (req, res) => {
       await pool.query(
         `UPDATE games SET status = 'question', current_question_index = 0, question_started_at = now(), question_ended_at = NULL
          WHERE id = $1 AND status = 'title'`,
-        [gameId]
+        [gameId],
       );
       return res.status(200).json({ status: 'question' });
     }
@@ -36,17 +36,19 @@ export default withAdmin(async (req, res) => {
         `UPDATE games SET status = 'question', current_question_index = current_question_index + 1,
                 question_started_at = now(), question_ended_at = NULL
          WHERE id = $1 AND status = 'leaderboard'`,
-        [gameId]
+        [gameId],
       );
       return res.status(200).json({ status: 'question' });
     }
 
     if (from === 'reveal') {
-      const { rows: [game] } = await pool.query(
+      const {
+        rows: [game],
+      } = await pool.query(
         `SELECT g.current_question_index,
                 (SELECT COUNT(*) FROM questions WHERE quiz_id = g.quiz_id)::int AS total
          FROM games g WHERE g.id = $1`,
-        [gameId]
+        [gameId],
       );
       if (!game) return res.status(404).json({ error: 'Juego no encontrado.' });
       const isLast = game.current_question_index >= game.total - 1;
@@ -61,10 +63,7 @@ export default withAdmin(async (req, res) => {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
-        const { rows } = await client.query(
-          `UPDATE games SET status = 'podium', finished_at = now() WHERE id = $1 AND status = 'reveal' RETURNING quiz_id`,
-          [gameId]
-        );
+        const { rows } = await client.query(`UPDATE games SET status = 'podium', finished_at = now() WHERE id = $1 AND status = 'reveal' RETURNING quiz_id`, [gameId]);
         if (rows[0]) {
           await client.query(
             `INSERT INTO kahoot_results (kahoot_name, cuatrimestre, padron, correct_answers, incorrect_answers)
@@ -77,7 +76,7 @@ export default withAdmin(async (req, res) => {
              LEFT JOIN game_answers a ON a.player_id = p.id
              WHERE p.game_id = $1
              GROUP BY qz.id, qz.name, g.code, p.padron`,
-            [gameId, cuatrimestreNow()]
+            [gameId, cuatrimestreNow()],
           );
         }
         await client.query('COMMIT');

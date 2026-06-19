@@ -53,17 +53,17 @@ apiRoute.post(async (req: any, res) => {
     // El formato se determina por el contenido real, no por el mimetype/extensión del cliente.
     const header = Buffer.alloc(12);
     const fd = fs.openSync(req.file.path, 'r');
-    try { fs.readSync(fd, header, 0, 12, 0); } finally { fs.closeSync(fd); }
+    try {
+      fs.readSync(fd, header, 0, 12, 0);
+    } finally {
+      fs.closeSync(fd);
+    }
     const detected = detectImageType(header);
     const ext = detected && ALLOWED_TYPES[detected];
     if (!detected || !ext) {
       return res.status(400).json({ error: 'Formato no permitido. Usá PNG, JPG, WEBP o GIF.' });
     }
-    const blob = await put(
-      `questions/${crypto.randomBytes(8).toString('hex')}${ext}`,
-      fs.createReadStream(req.file.path),
-      { access: 'public', contentType: detected }
-    );
+    const blob = await put(`questions/${crypto.randomBytes(8).toString('hex')}${ext}`, fs.createReadStream(req.file.path), { access: 'public', contentType: detected });
     res.status(200).json({ url: blob.url });
   } catch (err: any) {
     console.error('upload-image error:', err);

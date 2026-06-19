@@ -11,10 +11,7 @@ export default withAdmin(async (req, res, admin) => {
     const quiz = await loadQuiz(client, quizId);
     if (!quiz) return res.status(404).json({ error: 'Cuestionario no encontrado.' });
     await client.query('BEGIN');
-    const { rows } = await client.query(
-      'INSERT INTO quizzes (name, created_by) VALUES ($1, $2) RETURNING id',
-      [`${quiz.name} (copia)`, admin.id]
-    );
+    const { rows } = await client.query('INSERT INTO quizzes (name, created_by) VALUES ($1, $2) RETURNING id', [`${quiz.name} (copia)`, admin.id]);
     await insertQuestions(client, rows[0].id, quiz.questions);
     await client.query('COMMIT');
     await audit(admin.id, 'quiz_duplicate', 'quiz', rows[0].id, { from: quizId, name: `${quiz.name} (copia)` });

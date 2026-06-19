@@ -13,8 +13,15 @@ interface QuizRow {
 }
 
 const btnStyle = (bg: string): React.CSSProperties => ({
-  background: bg, color: '#fff', border: 'none', borderRadius: 6,
-  padding: '7px 14px', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginRight: 8,
+  background: bg,
+  color: '#fff',
+  border: 'none',
+  borderRadius: 6,
+  padding: '7px 14px',
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+  marginRight: 8,
 });
 
 const AdminDashboard: React.FC<{ admin: AdminSession }> = ({ admin }) => {
@@ -63,7 +70,9 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = ({ admin }) => {
           <h2 style={{ fontSize: 28, fontWeight: 700, color: '#1976d2' }}>Cuestionarios</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ color: '#666' }}>{admin.username}</span>
-            <button onClick={logout} style={{ ...btnStyle('#888'), marginRight: 0 }}>Salir</button>
+            <button onClick={logout} style={{ ...btnStyle('#888'), marginRight: 0 }}>
+              Salir
+            </button>
           </div>
         </div>
 
@@ -82,19 +91,13 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = ({ admin }) => {
           </Link>
         </div>
 
-        {error && (
-          <div style={{ color: '#d32f2f', background: '#ffebee', borderRadius: 6, padding: '10px 18px', fontWeight: 500, marginBottom: 18 }}>
-            {error}
-          </div>
-        )}
+        {error && <div style={{ color: '#d32f2f', background: '#ffebee', borderRadius: 6, padding: '10px 18px', fontWeight: 500, marginBottom: 18 }}>{error}</div>}
 
         <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
           {loading ? (
             <div style={{ padding: 32, textAlign: 'center', color: '#666' }}>Cargando...</div>
           ) : quizzes.length === 0 ? (
-            <div style={{ padding: 32, textAlign: 'center', color: '#666' }}>
-              No hay cuestionarios todavía. Creá el primero con &quot;+ Nuevo cuestionario&quot;.
-            </div>
+            <div style={{ padding: 32, textAlign: 'center', color: '#666' }}>No hay cuestionarios todavía. Creá el primero con &quot;+ Nuevo cuestionario&quot;.</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -112,15 +115,21 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = ({ admin }) => {
                     <td style={{ padding: '12px 16px' }}>{q.question_count}</td>
                     <td style={{ padding: '12px 16px' }}>{q.created_by_username}</td>
                     <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button onClick={() => startGame(q.id)} style={btnStyle('#388e3c')}>Jugar</button>
+                      <button onClick={() => startGame(q.id)} style={btnStyle('#388e3c')}>
+                        Jugar
+                      </button>
                       {q.has_games ? (
                         <button onClick={() => duplicateQuiz(q.id)} title="Ya fue jugado: se duplica para editar" style={btnStyle('#f57c00')}>
                           Duplicar para editar
                         </button>
                       ) : (
-                        <button onClick={() => router.push(`/admin/quizzes/${q.id}`)} style={btnStyle('#1976d2')}>Editar</button>
+                        <button onClick={() => router.push(`/admin/quizzes/${q.id}`)} style={btnStyle('#1976d2')}>
+                          Editar
+                        </button>
                       )}
-                      <button onClick={() => duplicateQuiz(q.id)} style={{ ...btnStyle('#888'), marginRight: 0 }}>Duplicar</button>
+                      <button onClick={() => duplicateQuiz(q.id)} style={{ ...btnStyle('#888'), marginRight: 0 }}>
+                        Duplicar
+                      </button>
                     </td>
                   </tr>
                 ))}

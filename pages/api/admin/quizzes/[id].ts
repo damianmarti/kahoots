@@ -30,10 +30,7 @@ export default withAdmin(async (req, res, admin) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const { rows } = await client.query(
-        'UPDATE quizzes SET name = $1, updated_at = now() WHERE id = $2 RETURNING id',
-        [req.body.name.trim(), quizId]
-      );
+      const { rows } = await client.query('UPDATE quizzes SET name = $1, updated_at = now() WHERE id = $2 RETURNING id', [req.body.name.trim(), quizId]);
       if (!rows[0]) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Cuestionario no encontrado.' });

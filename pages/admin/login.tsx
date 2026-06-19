@@ -36,35 +36,58 @@ const AdminLogin: React.FC = () => {
 
   return (
     <div style={{ minHeight: '80vh', background: '#f6f8fa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{
-        background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-        padding: '40px 32px', maxWidth: 380, width: '100%',
-      }}>
-        <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 28, color: '#1976d2', textAlign: 'center' }}>
-          Admin
-        </h2>
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 16,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+          padding: '40px 32px',
+          maxWidth: 380,
+          width: '100%',
+        }}
+      >
+        <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 28, color: '#1976d2', textAlign: 'center' }}>Admin</h2>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 18 }}>
-            <label style={{ fontWeight: 500 }}>Usuario:</label><br />
+            <label style={{ fontWeight: 500 }}>Usuario:</label>
+            <br />
             <input type="text" value={username} onChange={e => setUsername(e.target.value)} required autoFocus style={inputStyle} />
           </div>
           <div style={{ marginBottom: 24 }}>
-            <label style={{ fontWeight: 500 }}>Contraseña:</label><br />
+            <label style={{ fontWeight: 500 }}>Contraseña:</label>
+            <br />
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} required style={inputStyle} />
           </div>
-          <button type="submit" disabled={loading} style={{
-            width: '100%', background: loading ? '#b3d1f7' : '#1976d2', color: '#fff', border: 'none',
-            borderRadius: 6, padding: '12px 0', fontSize: 18, fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer',
-          }}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+              background: loading ? '#b3d1f7' : '#1976d2',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              padding: '12px 0',
+              fontSize: 18,
+              fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+          >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
         {error && (
-          <div style={{
-            marginTop: 22, color: '#d32f2f', background: '#ffebee', borderRadius: 6,
-            padding: '10px 18px', fontWeight: 500, textAlign: 'center',
-          }}>
+          <div
+            style={{
+              marginTop: 22,
+              color: '#d32f2f',
+              background: '#ffebee',
+              borderRadius: 6,
+              padding: '10px 18px',
+              fontWeight: 500,
+              textAlign: 'center',
+            }}
+          >
             {error}
           </div>
         )}

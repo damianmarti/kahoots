@@ -11,7 +11,7 @@ export default withAdmin(async (req, res, admin) => {
        FROM games g
        JOIN quizzes qz ON qz.id = g.quiz_id
        JOIN admin_users u ON u.id = g.started_by
-       ORDER BY g.id DESC`
+       ORDER BY g.id DESC`,
     );
     return res.status(200).json({ games: rows });
   }
@@ -24,10 +24,7 @@ export default withAdmin(async (req, res, admin) => {
       for (let attempt = 0; attempt < 5; attempt++) {
         const code = randomCode();
         try {
-          const { rows } = await pool.query(
-            'INSERT INTO games (code, quiz_id, started_by) VALUES ($1, $2, $3) RETURNING id',
-            [code, quizId, admin.id]
-          );
+          const { rows } = await pool.query('INSERT INTO games (code, quiz_id, started_by) VALUES ($1, $2, $3) RETURNING id', [code, quizId, admin.id]);
           await audit(admin.id, 'game_start', 'game', rows[0].id, { quizId, code });
           return res.status(200).json({ gameId: rows[0].id, code, joinUrl: `/play/${code}` });
         } catch (err: any) {

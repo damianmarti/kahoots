@@ -35,7 +35,7 @@ export async function maybeExpireQuestion(gameId: number): Promise<void> {
      WHERE g.id = $1 AND g.status = 'question'
        AND q.quiz_id = g.quiz_id AND q.position = g.current_question_index
        AND now() > g.question_started_at + (q.time_limit || ' seconds')::interval`,
-    [gameId]
+    [gameId],
   );
 }
 
@@ -50,7 +50,7 @@ export async function maybeCloseIfAllAnswered(gameId: number): Promise<void> {
        AND (SELECT COUNT(*) FROM game_answers a WHERE a.game_id = g.id AND a.question_id = q.id)
            >= (SELECT COUNT(*) FROM game_players p WHERE p.game_id = g.id
                AND p.last_seen_at > now() - ($2 || ' milliseconds')::interval)`,
-    [gameId, ACTIVE_WINDOW_MS]
+    [gameId, ACTIVE_WINDOW_MS],
   );
 }
 
@@ -60,7 +60,7 @@ export async function getLeaderboard(gameId: number, limit = 5) {
      FROM game_players WHERE game_id = $1
      ORDER BY score DESC, joined_at ASC
      LIMIT $2`,
-    [gameId, limit]
+    [gameId, limit],
   );
   return rows.map(r => ({ padron: r.padron, nickname: r.nickname, score: r.score, rank: Number(r.rank) }));
 }
@@ -78,7 +78,7 @@ export async function getGameState(gameId: number) {
      JOIN quizzes qz ON qz.id = g.quiz_id
      LEFT JOIN questions q ON q.quiz_id = g.quiz_id AND q.position = g.current_question_index
      WHERE g.id = $1`,
-    [gameId]
+    [gameId],
   );
   return rows[0] ?? null;
 }
