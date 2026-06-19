@@ -5,7 +5,11 @@ import { maybeExpireQuestion, maybeCloseIfAllAnswered, computePoints, ANSWER_GRA
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const code = ((req.query.code as string) || '').toUpperCase();
-  const { token, questionId, selectedOptionIds } = req.body || {};
+  // El token va en el header Authorization (no en el body) para evitar que un
+  // token bearer se filtre por logs/analítica/Referer, igual que en /poll.
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  const { questionId, selectedOptionIds } = req.body || {};
   if (!token || !questionId || !Array.isArray(selectedOptionIds) || selectedOptionIds.length === 0) {
     return res.status(400).json({ error: 'Faltan datos.' });
   }

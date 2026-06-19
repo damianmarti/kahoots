@@ -160,9 +160,11 @@ const PlayGame: React.FC = () => {
     try {
       const res = await fetch(`/api/play/${code}/answer`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          token,
           questionId: state.question.id,
           selectedOptionIds: optionIds,
         }),
