@@ -376,7 +376,7 @@ const PlayGame: React.FC = () => {
           {state.question?.imageUrl && (
             <img
               src={state.question.imageUrl}
-              alt=""
+              alt={state.question.text ? `Imagen de la pregunta: ${state.question.text}` : 'Imagen de la pregunta'}
               style={{
                 maxHeight: 160,
                 maxWidth: '100%',
