@@ -55,3 +55,17 @@ body {
 .anim-podium-rise { animation: podiumRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .anim-glow { animation: glowPulse 1.6s ease-in-out infinite; }
 .anim-drum { animation: drumShake 0.7s ease-in-out infinite; }
+
+/* Accesibilidad: respetar la preferencia de movimiento reducido.
+   Neutraliza animaciones (incluidas las infinitas: pulse/glow/drum y el
+   confetti) y transiciones, dejando el estado final visible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
