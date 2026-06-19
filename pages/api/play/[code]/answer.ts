@@ -9,8 +9,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // token bearer se filtre por logs/analítica/Referer, igual que en /poll.
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  const { questionId, selectedOptionIds } = req.body || {};
-  if (!token || !questionId || !Array.isArray(selectedOptionIds) || selectedOptionIds.length === 0) {
+  const { selectedOptionIds } = req.body || {};
+  // questionId puede llegar como string desde un cliente no tipado: se normaliza
+  // a número para que la comparación estricta con row.question_id (int) no falle.
+  const questionId = Number.parseInt(req.body?.questionId, 10);
+  if (!token || !Number.isInteger(questionId) || !Array.isArray(selectedOptionIds) || selectedOptionIds.length === 0) {
     return res.status(400).json({ error: 'Faltan datos.' });
   }
 
