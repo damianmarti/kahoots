@@ -64,7 +64,14 @@ export function withAdmin(handler: Handler) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     const admin = getAdmin(req);
     if (!admin) return res.status(401).json({ error: 'No autorizado' });
-    return handler(req, res, admin);
+    try {
+      return await handler(req, res, admin);
+    } catch (err) {
+      // Red de seguridad para handlers que no manejan sus propios errores:
+      // respuesta uniforme en vez del 500 genérico de Next (o un handler colgado).
+      console.error(`admin handler error (${req.method} ${req.url}):`, err);
+      if (!res.headersSent) res.status(500).json({ error: 'Error interno del servidor.' });
+    }
   };
 }
 
