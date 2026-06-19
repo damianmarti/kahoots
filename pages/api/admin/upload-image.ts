@@ -10,7 +10,8 @@ const upload = multer({ dest: '/tmp', limits: { fileSize: 4 * 1024 * 1024 } });
 
 const apiRoute = nextConnect<NextApiRequest, NextApiResponse>({
   onError(error, req, res) {
-    res.status(501).json({ error: `Sorry, something went wrong! ${error.message}` });
+    console.error('upload-image error:', error);
+    res.status(500).json({ error: 'Algo salió mal al subir la imagen.' });
   },
   onNoMatch(req, res) {
     res.status(405).json({ error: `Method '${req.method}' Not Allowed` });
@@ -39,7 +40,8 @@ apiRoute.post(async (req: any, res) => {
     );
     res.status(200).json({ url: blob.url });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('upload-image error:', err);
+    res.status(500).json({ error: 'Algo salió mal al subir la imagen.' });
   } finally {
     if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
   }
