@@ -21,6 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
     res.status(200).json({ results: result.rows });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('results error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   }
 }

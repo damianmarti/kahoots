@@ -22,7 +22,8 @@ function extractPadron(name: string): string | null {
 
 const apiRoute = nextConnect<NextApiRequest, NextApiResponse>({
   onError(error, req, res) {
-    res.status(501).json({ error: `Sorry, something went wrong! ${error.message}` });
+    console.error('upload error:', error);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   },
   onNoMatch(req, res) {
     res.status(405).json({ error: `Method '${req.method}' Not Allowed` });
@@ -73,7 +74,8 @@ apiRoute.post(async (req: any, res) => {
     res.status(200).json({ success: true });
   } catch (err: any) {
     if (req.file && req.file.path) fs.unlinkSync(req.file.path);
-    res.status(500).json({ error: err.message });
+    console.error('upload error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   }
 });
 
