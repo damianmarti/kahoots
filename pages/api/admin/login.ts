@@ -7,9 +7,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'Faltan usuario o contraseña.' });
+  const normalizedUsername = String(username).trim();
+  const normalizedPassword = String(password);
   try {
-    const { rows } = await pool.query('SELECT id, username, password_hash FROM admin_users WHERE username = $1', [username]);
-    if (!rows[0] || !(await bcrypt.compare(password, rows[0].password_hash))) {
+    const { rows } = await pool.query('SELECT id, username, password_hash FROM admin_users WHERE username = $1', [normalizedUsername]);
+    if (!rows[0] || !(await bcrypt.compare(normalizedPassword, rows[0].password_hash))) {
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
     }
     const admin = { id: rows[0].id, username: rows[0].username };
