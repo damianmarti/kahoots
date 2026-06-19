@@ -15,11 +15,12 @@ export default withAdmin(async (req, res, admin) => {
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'Faltan usuario o contraseña.' });
     const normalizedUsername = String(username).trim();
+    const normalizedPassword = String(password);
     if (!normalizedUsername) return res.status(400).json({ error: 'El usuario no puede estar vacío.' });
     if (normalizedUsername.length > 50) return res.status(400).json({ error: 'El usuario no puede superar los 50 caracteres.' });
-    if (password.length < 8) return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
+    if (normalizedPassword.length < 8) return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres.' });
     try {
-      const hash = await bcrypt.hash(password, 10);
+      const hash = await bcrypt.hash(normalizedPassword, 10);
       const { rows } = await pool.query('INSERT INTO admin_users (username, password_hash, created_by) VALUES ($1, $2, $3) RETURNING id, username', [normalizedUsername, hash, admin.id]);
       await audit(admin.id, 'admin_create', 'admin', rows[0].id, { username: normalizedUsername });
       return res.status(200).json({ user: rows[0] });
