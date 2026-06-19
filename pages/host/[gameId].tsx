@@ -159,11 +159,14 @@ const HostGame: React.FC = () => {
     return (
       <Screen>
         <h1 style={{ color: '#fff', fontSize: 40, marginBottom: 8 }}>{state.quizName}</h1>
-        <div
+        <button
+          type="button"
           onClick={copyJoinUrl}
           title="Click para copiar la URL"
           style={{
             background: '#fff',
+            border: 'none',
+            font: 'inherit',
             borderRadius: 12,
             padding: '18px 32px',
             marginBottom: 8,
@@ -195,7 +198,7 @@ const HostGame: React.FC = () => {
           >
             {copied ? '¡URL copiada!' : 'Click para copiar la URL'}
           </div>
-        </div>
+        </button>
         <div style={{ color: '#fff', fontSize: 22, margin: '12px 0 20px' }}>
           {state.players?.length || 0} jugador
           {(state.players?.length || 0) === 1 ? '' : 'es'}
