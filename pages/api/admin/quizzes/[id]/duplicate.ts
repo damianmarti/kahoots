@@ -21,7 +21,8 @@ export default withAdmin(async (req, res, admin) => {
     res.status(200).json({ id: rows[0].id });
   } catch (err: any) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
+    console.error('admin/quizzes/duplicate error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   } finally {
     client.release();
   }

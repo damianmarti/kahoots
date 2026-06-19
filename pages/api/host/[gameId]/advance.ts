@@ -92,6 +92,7 @@ export default withAdmin(async (req, res) => {
 
     return res.status(400).json({ error: `Transición inválida desde "${from}".` });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    console.error('host/advance error:', err);
+    return res.status(500).json({ error: 'Error interno del servidor.' });
   }
 });

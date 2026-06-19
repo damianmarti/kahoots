@@ -59,6 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // No se devuelve si fue correcta: el jugador lo ve recién en el reveal
     res.status(200).json({ answered: true });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('play/answer error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   }
 }

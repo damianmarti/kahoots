@@ -36,7 +36,8 @@ export default withAdmin(async (req, res, admin) => {
       }
       return res.status(500).json({ error: 'No se pudo generar un código único.' });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      console.error('admin/games error:', err);
+      return res.status(500).json({ error: 'Error interno del servidor.' });
     }
   }
   res.status(405).json({ error: 'Method not allowed' });

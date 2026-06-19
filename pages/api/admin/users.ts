@@ -25,7 +25,8 @@ export default withAdmin(async (req, res, admin) => {
       return res.status(200).json({ user: rows[0] });
     } catch (err: any) {
       if (err.code === '23505') return res.status(400).json({ error: 'Ese usuario ya existe.' });
-      return res.status(500).json({ error: err.message });
+      console.error('admin/users error:', err);
+      return res.status(500).json({ error: 'Error interno del servidor.' });
     }
   }
   res.status(405).json({ error: 'Method not allowed' });

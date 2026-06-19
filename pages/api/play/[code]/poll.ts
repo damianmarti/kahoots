@@ -101,6 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // title
     return res.status(200).json(base);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('play/poll error:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   }
 }

@@ -29,7 +29,8 @@ export default withAdmin(async (req, res, admin) => {
       return res.status(200).json({ id: rows[0].id });
     } catch (err: any) {
       await client.query('ROLLBACK');
-      return res.status(500).json({ error: err.message });
+      console.error('admin/quizzes error:', err);
+      return res.status(500).json({ error: 'Error interno del servidor.' });
     } finally {
       client.release();
     }
