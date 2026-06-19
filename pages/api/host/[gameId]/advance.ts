@@ -68,7 +68,7 @@ export default withAdmin(async (req, res) => {
         if (rows[0]) {
           await client.query(
             `INSERT INTO kahoot_results (kahoot_name, cuatrimestre, padron, correct_answers, incorrect_answers)
-             SELECT qz.name, $2, p.padron,
+             SELECT qz.name || ' (' || g.code || ')', $2, p.padron,
                     COUNT(a.id) FILTER (WHERE a.is_correct)::int,
                     ((SELECT COUNT(*) FROM questions WHERE quiz_id = qz.id) - COUNT(a.id) FILTER (WHERE a.is_correct))::int
              FROM game_players p
@@ -76,7 +76,7 @@ export default withAdmin(async (req, res) => {
              JOIN quizzes qz ON qz.id = g.quiz_id
              LEFT JOIN game_answers a ON a.player_id = p.id
              WHERE p.game_id = $1
-             GROUP BY qz.id, qz.name, p.padron`,
+             GROUP BY qz.id, qz.name, g.code, p.padron`,
             [gameId, cuatrimestreNow()]
           );
         }
