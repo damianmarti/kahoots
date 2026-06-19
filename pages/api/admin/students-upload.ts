@@ -56,7 +56,7 @@ apiRoute.post(async (req: any, res) => {
       }
       await client.query('COMMIT');
     } catch (err) {
-      await client.query('ROLLBACK');
+      await client.query('ROLLBACK').catch(rbErr => console.error('rollback failed:', rbErr));
       throw err;
     } finally {
       client.release();

@@ -17,7 +17,7 @@ export default withAdmin(async (req, res, admin) => {
     await audit(admin.id, 'quiz_duplicate', 'quiz', rows[0].id, { from: quizId, name: `${quiz.name} (copia)` });
     res.status(200).json({ id: rows[0].id });
   } catch (err: any) {
-    await client.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(rbErr => console.error('rollback failed:', rbErr));
     console.error('admin/quizzes/duplicate error:', err);
     res.status(500).json({ error: 'Error interno del servidor.' });
   } finally {

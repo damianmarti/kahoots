@@ -25,7 +25,7 @@ export default withAdmin(async (req, res, admin) => {
       await audit(admin.id, 'quiz_create', 'quiz', rows[0].id, { name: req.body.name.trim() });
       return res.status(200).json({ id: rows[0].id });
     } catch (err: any) {
-      await client.query('ROLLBACK');
+      await client.query('ROLLBACK').catch(rbErr => console.error('rollback failed:', rbErr));
       console.error('admin/quizzes error:', err);
       return res.status(500).json({ error: 'Error interno del servidor.' });
     } finally {
