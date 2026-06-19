@@ -5,10 +5,14 @@ import fs from 'fs';
 import { pool } from '../../../lib/db';
 import { getAdmin, audit } from '../../../lib/auth';
 
-const upload = multer({ dest: '/tmp' });
+// Límite de tamaño para evitar agotar /tmp o memoria/CPU (DoS) al leer el CSV.
+const upload = multer({ dest: '/tmp', limits: { fileSize: 2 * 1024 * 1024 } });
 
 const apiRoute = nextConnect<NextApiRequest, NextApiResponse>({
-  onError(error, req, res) {
+  onError(error: any, req, res) {
+    if (error?.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'El archivo es demasiado grande (máx. 2 MB).' });
+    }
     console.error('students-upload error:', error);
     res.status(500).json({ error: 'Algo salió mal al procesar el archivo.' });
   },

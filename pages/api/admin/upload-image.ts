@@ -28,7 +28,10 @@ function detectImageType(buf: Buffer): string | null {
 }
 
 const apiRoute = nextConnect<NextApiRequest, NextApiResponse>({
-  onError(error, req, res) {
+  onError(error: any, req, res) {
+    if (error?.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'La imagen es demasiado grande (máx. 4 MB).' });
+    }
     console.error('upload-image error:', error);
     res.status(500).json({ error: 'Algo salió mal al subir la imagen.' });
   },
