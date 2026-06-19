@@ -65,10 +65,15 @@ const BackgroundMusic: React.FC = () => {
   };
 
   const scheduleLoop = (ctx: AudioContext, startTime: number) => {
-    for (const [pitch, t, d] of MELODY) scheduleNote(ctx, startTime + t * EIGHTH_SEC, pitch, d, 0.055, 'square');
-    for (const [pitch, t, d] of BASS) scheduleNote(ctx, startTime + t * EIGHTH_SEC, pitch, d, 0.045, 'triangle');
-    const nextStart = startTime + LOOP_EIGHTHS * EIGHTH_SEC;
-    timerRef.current = setTimeout(() => scheduleLoop(ctx, nextStart), (nextStart - ctx.currentTime - 1) * 1000);
+    // Si el timer se disparó tarde (tab en background / throttling), no programar
+    // notas en el pasado: se saltan al presente para no acumular eventos.
+    const start = Math.max(startTime, ctx.currentTime + 0.05);
+    for (const [pitch, t, d] of MELODY) scheduleNote(ctx, start + t * EIGHTH_SEC, pitch, d, 0.055, 'square');
+    for (const [pitch, t, d] of BASS) scheduleNote(ctx, start + t * EIGHTH_SEC, pitch, d, 0.045, 'triangle');
+    const nextStart = start + LOOP_EIGHTHS * EIGHTH_SEC;
+    // Clamp a >= 0 para que un delay negativo no dispare un re-loop inmediato en bucle.
+    const delayMs = Math.max(0, (nextStart - ctx.currentTime - 1) * 1000);
+    timerRef.current = setTimeout(() => scheduleLoop(ctx, nextStart), delayMs);
   };
 
   const start = () => {
