@@ -21,7 +21,9 @@ const AdminLogin: React.FC = () => {
         body: JSON.stringify({ username, password }),
       });
       if (res.ok) {
-        const next = typeof router.query.next === 'string' ? router.query.next : '/admin';
+        const raw = typeof router.query.next === 'string' ? router.query.next : '';
+        // Solo paths internos: evita open-redirect (https://, //host, /\host).
+        const next = /^\/(?![/\\])/.test(raw) ? raw : '/admin';
         router.push(next);
       } else {
         const data = await res.json();
