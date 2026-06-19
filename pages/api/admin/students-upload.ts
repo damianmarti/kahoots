@@ -9,7 +9,8 @@ const upload = multer({ dest: '/tmp' });
 
 const apiRoute = nextConnect<NextApiRequest, NextApiResponse>({
   onError(error, req, res) {
-    res.status(501).json({ error: `Sorry, something went wrong! ${error.message}` });
+    console.error('students-upload error:', error);
+    res.status(500).json({ error: 'Algo salió mal al procesar el archivo.' });
   },
   onNoMatch(req, res) {
     res.status(405).json({ error: `Method '${req.method}' Not Allowed` });
@@ -59,7 +60,8 @@ apiRoute.post(async (req: any, res) => {
     await audit(admin.id, 'students_upload', 'students', null, { count: rows.length });
     res.status(200).json({ success: true, count: rows.length });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('students-upload error:', err);
+    res.status(500).json({ error: 'Algo salió mal al procesar el archivo.' });
   } finally {
     if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
   }
