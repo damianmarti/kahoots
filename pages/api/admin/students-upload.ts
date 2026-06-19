@@ -21,15 +21,18 @@ const apiRoute = nextConnect<NextApiRequest, NextApiResponse>({
   },
 });
 
+// Autenticar ANTES de multer: así un request no autorizado se rechaza sin
+// llegar a parsear ni escribir el archivo en /tmp.
+apiRoute.use((req, res, next) => {
+  if (!getAdmin(req)) return res.status(401).json({ error: 'No autorizado' });
+  next();
+});
+
 apiRoute.use(upload.single('file'));
 
 // CSV con columnas: padron,nombre,apellido (con o sin fila de encabezado)
 apiRoute.post(async (req: any, res) => {
-  const admin = getAdmin(req);
-  if (!admin) {
-    if (req.file?.path) fs.unlinkSync(req.file.path);
-    return res.status(401).json({ error: 'No autorizado' });
-  }
+  const admin = getAdmin(req)!;
   if (!req.file) return res.status(400).json({ error: 'Falta el archivo CSV.' });
   try {
     const content = fs.readFileSync(req.file.path, 'utf8');
