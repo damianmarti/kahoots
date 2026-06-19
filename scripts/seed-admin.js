@@ -5,8 +5,14 @@ const path = require('path');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-// Carga .env.local (sin sobrescribir variables ya presentes en el entorno)
-require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
+// Carga .env.local (sin sobrescribir variables ya presentes en el entorno).
+// dotenv está en devDependencies: si no está instalado (prod/CI con
+// --omit=dev) se sigue de largo y se usan las variables del entorno.
+try {
+  require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
+} catch {
+  /* dotenv no instalado: se asume que las variables vienen del entorno */
+}
 
 const username = process.argv[2] || process.env.ADMIN_USERNAME;
 const password = process.argv[3] || process.env.ADMIN_PASSWORD;
