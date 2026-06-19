@@ -1,19 +1,12 @@
 // Crea el primer usuario admin.
 // Uso: node scripts/seed-admin.js <username> <password>
 //   o con env vars: ADMIN_USERNAME=... ADMIN_PASSWORD=... node scripts/seed-admin.js
-const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-// Carga .env.local a mano (sin depender de next)
-const envPath = path.join(__dirname, '..', '.env.local');
-if (fs.existsSync(envPath)) {
-  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
-    const m = line.match(/^([A-Z_]+)=(.*)$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
-  }
-}
+// Carga .env.local (sin sobrescribir variables ya presentes en el entorno)
+require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 
 const username = process.argv[2] || process.env.ADMIN_USERNAME;
 const password = process.argv[3] || process.env.ADMIN_PASSWORD;
