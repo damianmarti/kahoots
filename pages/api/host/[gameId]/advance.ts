@@ -23,21 +23,23 @@ export default withAdmin(async (req, res) => {
     }
 
     if (from === 'title') {
-      await pool.query(
+      const { rowCount } = await pool.query(
         `UPDATE games SET status = 'question', current_question_index = 0, question_started_at = now(), question_ended_at = NULL
          WHERE id = $1 AND status = 'title'`,
         [gameId],
       );
+      if (!rowCount) return res.status(409).json({ error: 'El juego ya no está en este estado.' });
       return res.status(200).json({ status: 'question' });
     }
 
     if (from === 'leaderboard') {
-      await pool.query(
+      const { rowCount } = await pool.query(
         `UPDATE games SET status = 'question', current_question_index = current_question_index + 1,
                 question_started_at = now(), question_ended_at = NULL
          WHERE id = $1 AND status = 'leaderboard'`,
         [gameId],
       );
+      if (!rowCount) return res.status(409).json({ error: 'El juego ya no está en este estado.' });
       return res.status(200).json({ status: 'question' });
     }
 
@@ -54,7 +56,8 @@ export default withAdmin(async (req, res) => {
       const isLast = game.current_question_index >= game.total - 1;
 
       if (!isLast) {
-        await pool.query(`UPDATE games SET status = 'leaderboard' WHERE id = $1 AND status = 'reveal'`, [gameId]);
+        const { rowCount } = await pool.query(`UPDATE games SET status = 'leaderboard' WHERE id = $1 AND status = 'reveal'`, [gameId]);
+        if (!rowCount) return res.status(409).json({ error: 'El juego ya no está en este estado.' });
         return res.status(200).json({ status: 'leaderboard' });
       }
 
