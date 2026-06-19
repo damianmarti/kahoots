@@ -27,6 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await maybeExpireQuestion(player.game_id);
 
     const game = await getGameState(player.game_id);
+    if (!game) return res.status(404).json({ error: 'Juego no encontrado.' });
     const base = {
       status: game.status,
       quizName: game.quiz_name,
