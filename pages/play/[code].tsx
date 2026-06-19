@@ -55,7 +55,9 @@ const PlayGame: React.FC = () => {
     let active = true;
     const tick = async () => {
       try {
-        const res = await fetch(`/api/play/${code}/poll?token=${token}`);
+        const res = await fetch(`/api/play/${code}/poll`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!active) return;
         if (res.status === 401) {
           setKicked(true);

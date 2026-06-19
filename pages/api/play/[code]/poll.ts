@@ -4,7 +4,10 @@ import { maybeExpireQuestion, getGameState, getLeaderboard } from '../../../../l
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const code = (req.query.code as string || '').toUpperCase();
-  const token = req.query.token as string;
+  // El token va en el header Authorization (no en el querystring) para evitar
+  // que un token bearer se filtre por logs, CDN, analítica o headers Referer.
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   if (!token) return res.status(401).json({ kicked: true });
 
   try {
