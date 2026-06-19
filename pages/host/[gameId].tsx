@@ -317,7 +317,7 @@ const HostGame: React.FC = () => {
           {q.imageUrl && (
             <img
               src={q.imageUrl}
-              alt=""
+              alt={q.text ? `Imagen de la pregunta: ${q.text}` : 'Imagen de la pregunta'}
               style={{
                 maxHeight: 260,
                 maxWidth: '100%',

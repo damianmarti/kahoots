@@ -206,7 +206,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
               <br />
               {q.imageUrl ? (
                 <div style={{ marginTop: 8, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <img src={q.imageUrl} alt="" style={{ maxHeight: 120, maxWidth: 240, borderRadius: 8, border: '1px solid #eee' }} />
+                  <img src={q.imageUrl} alt={q.text ? `Imagen de la pregunta: ${q.text}` : 'Imagen de la pregunta'} style={{ maxHeight: 120, maxWidth: 240, borderRadius: 8, border: '1px solid #eee' }} />
                   <button onClick={() => updateQuestion(idx, { imageUrl: null })} style={smallBtn('#d32f2f')}>
                     Quitar
                   </button>
