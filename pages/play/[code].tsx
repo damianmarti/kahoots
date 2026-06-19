@@ -133,7 +133,7 @@ const PlayGame: React.FC = () => {
       });
       if (!res.ok) {
         const data = await res.json();
-        if (res.status === 401) { setKicked(true); return; }
+if (res.status === 401) { setKicked(true); localStorage.removeItem(`game-${code}`); return; }
         setError(data.error || 'No se pudo enviar la respuesta.');
         setSent(false);
       }
