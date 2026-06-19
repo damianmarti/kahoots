@@ -79,11 +79,18 @@ export async function requireAdminSSR(ctx: GetServerSidePropsContext) {
 }
 
 export async function audit(adminId: number, action: string, entityType: string | null = null, entityId: number | null = null, details: object | null = null) {
-  await pool.query('INSERT INTO audit_logs (admin_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)', [
-    adminId,
-    action,
-    entityType,
-    entityId,
-    details ? JSON.stringify(details) : null,
-  ]);
+  // La auditoría es best-effort: nunca debe romper la acción del usuario. Si la
+  // acción ya se commiteó, un fallo de auditoría no debe convertir el request en
+  // 500 (lo que induciría reintentos y posibles duplicados). Se loguea y sigue.
+  try {
+    await pool.query('INSERT INTO audit_logs (admin_id, action, entity_type, entity_id, details) VALUES ($1, $2, $3, $4, $5)', [
+      adminId,
+      action,
+      entityType,
+      entityId,
+      details ? JSON.stringify(details) : null,
+    ]);
+  } catch (err) {
+    console.error(`audit failed (action=${action}):`, err);
+  }
 }
