@@ -82,8 +82,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const {
         rows: [me],
       } = await pool.query(
-        `SELECT score, rank FROM (
-           SELECT id, score, RANK() OVER (ORDER BY score DESC) AS rank FROM game_players WHERE game_id = $1
+        `SELECT score, rank, prev_rank FROM (
+           SELECT p.id, p.score,
+                  RANK() OVER (ORDER BY p.score DESC) AS rank,
+                  RANK() OVER (ORDER BY p.score - COALESCE(a.points, 0) DESC) AS prev_rank
+           FROM game_players p
+           LEFT JOIN game_answers a ON a.player_id = p.id AND a.question_id =
+             (SELECT q.id FROM games g JOIN questions q ON q.quiz_id = g.quiz_id AND q.position = g.current_question_index WHERE g.id = $1)
+           WHERE p.game_id = $1
          ) r WHERE id = $2`,
         [player.game_id, player.id],
       );
@@ -92,6 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         leaderboard,
         yourScore: me.score,
         yourRank: Number(me.rank),
+        yourPrevRank: Number(me.prev_rank),
       });
     }
 

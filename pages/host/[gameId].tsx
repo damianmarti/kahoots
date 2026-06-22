@@ -4,6 +4,7 @@ import type { GetServerSidePropsContext } from 'next';
 import { requireAdminSSR } from '../../lib/auth';
 import Countdown from '../../components/Countdown';
 import MuteButton from '../../components/MuteButton';
+import RankDelta from '../../components/RankDelta';
 import { useHostAudio } from '../../hooks/useHostAudio';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
@@ -38,6 +39,7 @@ interface HostState {
     nickname: string;
     score: number;
     rank: number;
+    prevRank?: number;
   }[];
 }
 
@@ -406,6 +408,8 @@ const HostGame: React.FC = () => {
   }
 
   if (state.status === 'leaderboard') {
+    // En la primera pregunta todos partían empatados: el delta no es significativo.
+    const showDelta = (state.questionIndex ?? 0) > 0;
     return (
       <Screen>
         <h1 style={{ color: '#fff', fontSize: 42, marginBottom: 6 }}>Podio</h1>
@@ -433,7 +437,10 @@ const HostGame: React.FC = () => {
               <span>
                 {p.rank <= 3 ? MEDALS[p.rank - 1] : `${p.rank}.`} {p.nickname} <span style={{ color: '#888', fontWeight: 400, fontSize: 17 }}>({p.padron})</span>
               </span>
-              <span style={{ color: '#1976d2' }}>{p.score}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                {showDelta && p.prevRank != null && <RankDelta delta={p.prevRank - p.rank} size={18} />}
+                <span style={{ color: '#1976d2' }}>{p.score}</span>
+              </span>
             </div>
           ))}
         </div>

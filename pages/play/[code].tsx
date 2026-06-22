@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
+import RankDelta from '../../components/RankDelta';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
 
@@ -32,9 +33,11 @@ interface PlayState {
     nickname: string;
     score: number;
     rank: number;
+    prevRank?: number;
   }[];
   yourScore?: number;
   yourRank?: number;
+  yourPrevRank?: number;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -487,6 +490,8 @@ const PlayGame: React.FC = () => {
 
   if (state.status === 'leaderboard' || state.status === 'podium') {
     const isPodium = state.status === 'podium';
+    // En la primera pregunta todos partían empatados: el delta no es significativo.
+    const showDelta = !isPodium && (state.questionIndex ?? 0) > 0;
     if (isPodium && !showFinal) {
       return (
         <Screen>
@@ -524,7 +529,10 @@ const PlayGame: React.FC = () => {
               fontWeight: 800,
             }}
           >
-            <div style={{ fontSize: 40 }}>#{state.yourRank}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+              <span style={{ fontSize: 40 }}>#{state.yourRank}</span>
+              {showDelta && state.yourPrevRank != null && <RankDelta delta={state.yourPrevRank - (state.yourRank ?? 0)} size={22} />}
+            </div>
             <div style={{ fontSize: 20 }}>
               {state.nickname} — {state.yourScore} puntos
             </div>
@@ -546,7 +554,10 @@ const PlayGame: React.FC = () => {
               <span>
                 {p.rank}. {p.nickname}
               </span>
-              <span>{p.score}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {showDelta && p.prevRank != null && <RankDelta delta={p.prevRank - p.rank} light />}
+                <span>{p.score}</span>
+              </span>
             </div>
           ))}
         </div>
