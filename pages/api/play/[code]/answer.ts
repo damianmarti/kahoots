@@ -48,8 +48,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (row.type !== 'multi' && selected.length !== 1) return res.status(400).json({ error: 'Debe elegir una sola opción.' });
 
     const correctIds = options.filter(o => o.is_correct).map(o => o.id);
-    const isCorrect = selected.length === correctIds.length && correctIds.every(id => selected.includes(id));
-    const points = computePoints(isCorrect, elapsedMs, timeLimitMs);
+    const correctSet = new Set(correctIds);
+    // En multiple choice con varias correctas se otorga crédito parcial:
+    // (correctas marcadas - incorrectas marcadas) / total de correctas, con piso 0.
+    // Marcar todas las opciones no suma, porque cada incorrecta resta una correcta.
+    let fraction: number;
+    let isCorrect: boolean;
+    if (row.type === 'multi') {
+      const correctSelected = selected.filter(id => correctSet.has(id)).length;
+      const wrongSelected = selected.length - correctSelected;
+      fraction = correctIds.length > 0 ? Math.max(0, (correctSelected - wrongSelected) / correctIds.length) : 0;
+      isCorrect = correctSelected === correctIds.length && wrongSelected === 0;
+    } else {
+      isCorrect = selected.length === correctIds.length && correctIds.every(id => selected.includes(id));
+      fraction = isCorrect ? 1 : 0;
+    }
+    const points = computePoints(fraction, elapsedMs, timeLimitMs);
 
     const { rowCount } = await pool.query(
       `INSERT INTO game_answers (game_id, player_id, question_id, selected_options, is_correct, response_ms, points)

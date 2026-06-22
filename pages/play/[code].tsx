@@ -472,12 +472,13 @@ const PlayGame: React.FC = () => {
   if (state.status === 'reveal') {
     const a = state.yourAnswer;
     const correct = a?.isCorrect === true;
+    const partial = !!a && !correct && a.points > 0;
     return (
-      <Screen color={a ? (correct ? '#1b5e20' : '#b71c1c') : undefined}>
+      <Screen color={a ? (correct ? '#1b5e20' : partial ? '#e65100' : '#b71c1c') : undefined}>
         <div className="anim-fade-in-scale" style={{ textAlign: 'center', color: '#fff' }}>
-          <div style={{ fontSize: 60, marginBottom: 14 }}>{a ? (correct ? '🎉' : '😞') : '⏱'}</div>
-          <h2 style={{ fontSize: 30, margin: 0 }}>{a ? (correct ? '¡Correcto!' : 'Incorrecto') : 'No respondiste'}</h2>
-          {a && correct && <div style={{ fontSize: 24, marginTop: 12, fontWeight: 700 }}>+{a.points} puntos</div>}
+          <div style={{ fontSize: 60, marginBottom: 14 }}>{a ? (correct ? '🎉' : partial ? '👏' : '😞') : '⏱'}</div>
+          <h2 style={{ fontSize: 30, margin: 0 }}>{a ? (correct ? '¡Correcto!' : partial ? '¡Casi! Parcialmente correcto' : 'Incorrecto') : 'No respondiste'}</h2>
+          {a && a.points > 0 && <div style={{ fontSize: 24, marginTop: 12, fontWeight: 700 }}>+{a.points} puntos</div>}
           <div style={{ fontSize: 18, marginTop: 18, opacity: 0.85 }}>Puntaje total: {state.score}</div>
         </div>
       </Screen>
