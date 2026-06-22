@@ -3,7 +3,8 @@ import { useRouter } from 'next/router';
 import type { GetServerSidePropsContext } from 'next';
 import { requireAdminSSR } from '../../lib/auth';
 import Countdown from '../../components/Countdown';
-import BackgroundMusic from '../../components/BackgroundMusic';
+import MuteButton from '../../components/MuteButton';
+import { useHostAudio } from '../../hooks/useHostAudio';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -62,6 +63,9 @@ const HostGame: React.FC = () => {
   const advancing = useRef(false);
   const titleAdvanced = useRef(false);
   const pollNow = useRef<(() => Promise<void>) | null>(null);
+
+  // Música por fase y efectos de sonido (el motor persiste entre fases)
+  useHostAudio(state?.status, podiumStage);
 
   // Polling cada 1s
   useEffect(() => {
@@ -623,7 +627,7 @@ const Screen: React.FC<{ children: React.ReactNode; align?: string }> = ({ child
       padding: '32px 40px',
     }}
   >
-    <BackgroundMusic />
+    <MuteButton />
     {children}
   </div>
 );
