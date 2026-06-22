@@ -405,7 +405,10 @@ const HostGame: React.FC = () => {
   if (state.status === 'leaderboard') {
     return (
       <Screen>
-        <h1 style={{ color: '#fff', fontSize: 42, marginBottom: 28 }}>Podio</h1>
+        <h1 style={{ color: '#fff', fontSize: 42, marginBottom: 6 }}>Podio</h1>
+        <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 20, fontWeight: 600, marginBottom: 28 }}>
+          Pregunta {(state.questionIndex ?? 0) + 1} de {state.totalQuestions}
+        </div>
         <div style={{ width: '100%', maxWidth: 620 }}>
           {state.leaderboard?.map((p, i) => (
             <div
