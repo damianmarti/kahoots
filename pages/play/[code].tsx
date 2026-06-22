@@ -386,6 +386,22 @@ const PlayGame: React.FC = () => {
             />
           )}
         </div>
+        {isMulti && (
+          <div
+            style={{
+              background: 'rgba(255,255,255,0.18)',
+              color: '#fff',
+              borderRadius: 8,
+              padding: '10px 14px',
+              marginBottom: 12,
+              textAlign: 'center',
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            ✓ Puede haber varias respuestas correctas — seleccioná todas las que correspondan y tocá Enviar
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {state.options?.map((o, i) => {
             const isSelected = selected.includes(o.id);

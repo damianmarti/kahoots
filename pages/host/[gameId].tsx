@@ -321,6 +321,9 @@ const HostGame: React.FC = () => {
           }}
         >
           <div style={{ fontSize: 32, fontWeight: 700 }}>{q.text}</div>
+          {q.type === 'multi' && (
+            <div style={{ marginTop: 10, fontSize: 18, fontWeight: 700, color: '#1976d2' }}>✓ Varias respuestas correctas — elegí todas las que correspondan</div>
+          )}
           {q.imageUrl && (
             <img
               src={q.imageUrl}
