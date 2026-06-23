@@ -5,6 +5,7 @@ import { requireAdminSSR } from '../../lib/auth';
 import Countdown from '../../components/Countdown';
 import MuteButton from '../../components/MuteButton';
 import RankDelta from '../../components/RankDelta';
+import { characterEmoji } from '../../lib/characters';
 import { useHostAudio } from '../../hooks/useHostAudio';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
@@ -16,7 +17,7 @@ interface HostState {
   quizName: string;
   questionIndex: number | null;
   totalQuestions: number;
-  players?: { padron: string; nickname: string }[];
+  players?: { padron: string; nickname: string; avatar?: string }[];
   question?: {
     id: number;
     type: string;
@@ -37,6 +38,7 @@ interface HostState {
   leaderboard?: {
     padron: string;
     nickname: string;
+    avatar?: string;
     score: number;
     rank: number;
     prevRank?: number;
@@ -231,6 +233,7 @@ const HostGame: React.FC = () => {
                 fontSize: 18,
               }}
             >
+              <span style={{ marginRight: 6 }}>{characterEmoji(p.avatar)}</span>
               {p.nickname} <span style={{ color: '#888', fontWeight: 400 }}>({p.padron})</span>
             </div>
           ))}
@@ -435,7 +438,7 @@ const HostGame: React.FC = () => {
               }}
             >
               <span>
-                {p.rank <= 3 ? MEDALS[p.rank - 1] : `${p.rank}.`} {p.nickname} <span style={{ color: '#888', fontWeight: 400, fontSize: 17 }}>({p.padron})</span>
+                {p.rank <= 3 ? MEDALS[p.rank - 1] : `${p.rank}.`} {characterEmoji(p.avatar)} {p.nickname} <span style={{ color: '#888', fontWeight: 400, fontSize: 17 }}>({p.padron})</span>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 {showDelta && p.prevRank != null && <RankDelta delta={p.prevRank - p.rank} size={18} />}
@@ -518,7 +521,9 @@ const HostGame: React.FC = () => {
                         👑
                       </div>
                     )}
-                    <div style={{ fontSize: 54 }}>{MEDALS[pos]}</div>
+                    <div style={{ fontSize: 54 }}>
+                      {MEDALS[pos]} <span style={{ fontSize: 48 }}>{characterEmoji(p.avatar)}</span>
+                    </div>
                     <div
                       style={{
                         color: '#fff',

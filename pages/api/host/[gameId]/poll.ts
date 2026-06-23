@@ -21,7 +21,7 @@ export default withAdmin(async (req, res) => {
   };
 
   if (game.status === 'lobby') {
-    const { rows: players } = await pool.query('SELECT padron, nickname FROM game_players WHERE game_id = $1 ORDER BY joined_at', [gameId]);
+    const { rows: players } = await pool.query('SELECT padron, nickname, avatar FROM game_players WHERE game_id = $1 ORDER BY joined_at', [gameId]);
     return res.status(200).json({ ...base, players });
   }
 

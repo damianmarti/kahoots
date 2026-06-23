@@ -69,13 +69,13 @@ export async function getLeaderboard(gameId: number, limit = 5) {
        WHERE g.id = $1
      ),
      scored AS (
-       SELECT p.padron, p.nickname, p.score, p.joined_at,
+       SELECT p.padron, p.nickname, p.avatar, p.score, p.joined_at,
               p.score - COALESCE(a.points, 0) AS prev_score
        FROM game_players p
        LEFT JOIN game_answers a ON a.player_id = p.id AND a.question_id = (SELECT id FROM lastq)
        WHERE p.game_id = $1
      )
-     SELECT padron, nickname, score,
+     SELECT padron, nickname, avatar, score,
             RANK() OVER (ORDER BY score DESC) AS rank,
             RANK() OVER (ORDER BY prev_score DESC) AS prev_rank
      FROM scored
@@ -83,7 +83,7 @@ export async function getLeaderboard(gameId: number, limit = 5) {
      LIMIT $2`,
     [gameId, limit],
   );
-  return rows.map(r => ({ padron: r.padron, nickname: r.nickname, score: r.score, rank: Number(r.rank), prevRank: Number(r.prev_rank) }));
+  return rows.map(r => ({ padron: r.padron, nickname: r.nickname, avatar: r.avatar, score: r.score, rank: Number(r.rank), prevRank: Number(r.prev_rank) }));
 }
 
 // Game row + current question info + server-computed remaining time, in one query

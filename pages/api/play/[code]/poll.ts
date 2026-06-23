@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const {
       rows: [player],
     } = await pool.query(
-      `SELECT p.id, p.padron, p.nickname, p.score, g.id AS game_id
+      `SELECT p.id, p.padron, p.nickname, p.avatar, p.score, g.id AS game_id
        FROM games g JOIN game_players p ON p.game_id = g.id AND p.session_token = $2
        WHERE g.code = $1`,
       [code, token],
@@ -34,6 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       questionIndex: game.current_question_index,
       totalQuestions: game.total_questions,
       nickname: player.nickname,
+      character: player.avatar,
       score: player.score,
     };
 
