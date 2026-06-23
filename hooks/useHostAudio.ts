@@ -9,10 +9,16 @@ export function useHostAudio(status: string | undefined, podiumStage: number) {
   const prevStage = useRef(0);
 
   // Arranca el audio con el primer gesto (autoplay bloqueado por el browser).
+  // Al desmontar (ej: salir del host con "Volver") corta la música, que de otro
+  // modo seguiría sonando porque el motor es un singleton que sobrevive a la
+  // navegación SPA.
   useEffect(() => {
     const onFirstGesture = () => getHostAudio().resume();
     document.addEventListener('pointerdown', onFirstGesture, { once: true });
-    return () => document.removeEventListener('pointerdown', onFirstGesture);
+    return () => {
+      document.removeEventListener('pointerdown', onFirstGesture);
+      getHostAudio().setLoop(null);
+    };
   }, []);
 
   // Música en loop según la fase.
