@@ -23,8 +23,10 @@ const MuteButton: React.FC = () => {
 
   return (
     <button
+      type="button"
       onClick={toggle}
       title={muted ? 'Activar sonido' : 'Silenciar'}
+      aria-label={muted ? 'Activar sonido' : 'Silenciar'}
       style={{
         position: 'fixed',
         top: 16,
