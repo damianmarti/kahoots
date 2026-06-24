@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { pool } from '../../../../lib/db';
-import { maybeExpireQuestion, getGameState, getLeaderboard } from '../../../../lib/game';
+import { maybeExpireQuestion, getGameState, getLeaderboard, getPlayerRank } from '../../../../lib/game';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const code = ((req.query.code as string) || '').toUpperCase();
@@ -80,26 +80,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (game.status === 'leaderboard' || game.status === 'podium') {
       const leaderboard = await getLeaderboard(player.game_id, game.status === 'podium' ? 3 : 5);
-      const {
-        rows: [me],
-      } = await pool.query(
-        `SELECT score, rank, prev_rank FROM (
-           SELECT p.id, p.score,
-                  RANK() OVER (ORDER BY p.score DESC) AS rank,
-                  RANK() OVER (ORDER BY p.score - COALESCE(a.points, 0) DESC) AS prev_rank
-           FROM game_players p
-           LEFT JOIN game_answers a ON a.player_id = p.id AND a.question_id =
-             (SELECT q.id FROM games g JOIN questions q ON q.quiz_id = g.quiz_id AND q.position = g.current_question_index WHERE g.id = $1)
-           WHERE p.game_id = $1
-         ) r WHERE id = $2`,
-        [player.game_id, player.id],
-      );
+      const me = await getPlayerRank(player.game_id, player.id);
       return res.status(200).json({
         ...base,
         leaderboard,
         yourScore: me.score,
-        yourRank: Number(me.rank),
-        yourPrevRank: Number(me.prev_rank),
+        yourRank: me.rank,
+        yourPrevRank: me.prevRank,
       });
     }
 
