@@ -3,7 +3,10 @@ import { useRouter } from 'next/router';
 import type { GetServerSidePropsContext } from 'next';
 import { requireAdminSSR } from '../../lib/auth';
 import Countdown from '../../components/Countdown';
-import BackgroundMusic from '../../components/BackgroundMusic';
+import MuteButton from '../../components/MuteButton';
+import RankDelta from '../../components/RankDelta';
+import { characterEmoji } from '../../lib/characters';
+import { useHostAudio } from '../../hooks/useHostAudio';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -14,7 +17,7 @@ interface HostState {
   quizName: string;
   questionIndex: number | null;
   totalQuestions: number;
-  players?: { padron: string; nickname: string }[];
+  players?: { padron: string; nickname: string; avatar?: string }[];
   question?: {
     id: number;
     type: string;
@@ -35,8 +38,10 @@ interface HostState {
   leaderboard?: {
     padron: string;
     nickname: string;
+    avatar?: string;
     score: number;
     rank: number;
+    prevRank?: number;
   }[];
 }
 
@@ -62,6 +67,9 @@ const HostGame: React.FC = () => {
   const advancing = useRef(false);
   const titleAdvanced = useRef(false);
   const pollNow = useRef<(() => Promise<void>) | null>(null);
+
+  // Música por fase y efectos de sonido (el motor persiste entre fases)
+  useHostAudio(state?.status, podiumStage);
 
   // Polling cada 1s
   useEffect(() => {
@@ -225,6 +233,7 @@ const HostGame: React.FC = () => {
                 fontSize: 18,
               }}
             >
+              <span style={{ marginRight: 6 }}>{characterEmoji(p.avatar)}</span>
               {p.nickname} <span style={{ color: '#888', fontWeight: 400 }}>({p.padron})</span>
             </div>
           ))}
@@ -317,6 +326,9 @@ const HostGame: React.FC = () => {
           }}
         >
           <div style={{ fontSize: 32, fontWeight: 700 }}>{q.text}</div>
+          {q.type === 'multi' && (
+            <div style={{ marginTop: 10, fontSize: 18, fontWeight: 700, color: '#1976d2' }}>✓ Varias respuestas correctas — elegí todas las que correspondan</div>
+          )}
           {q.imageUrl && (
             <img
               src={q.imageUrl}
@@ -399,9 +411,14 @@ const HostGame: React.FC = () => {
   }
 
   if (state.status === 'leaderboard') {
+    // En la primera pregunta todos partían empatados: el delta no es significativo.
+    const showDelta = (state.questionIndex ?? 0) > 0;
     return (
       <Screen>
-        <h1 style={{ color: '#fff', fontSize: 42, marginBottom: 28 }}>Podio</h1>
+        <h1 style={{ color: '#fff', fontSize: 42, marginBottom: 6 }}>Podio</h1>
+        <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 20, fontWeight: 600, marginBottom: 28 }}>
+          Pregunta {(state.questionIndex ?? 0) + 1} de {state.totalQuestions}
+        </div>
         <div style={{ width: '100%', maxWidth: 620 }}>
           {state.leaderboard?.map((p, i) => (
             <div
@@ -421,9 +438,12 @@ const HostGame: React.FC = () => {
               }}
             >
               <span>
-                {p.rank <= 3 ? MEDALS[p.rank - 1] : `${p.rank}.`} {p.nickname} <span style={{ color: '#888', fontWeight: 400, fontSize: 17 }}>({p.padron})</span>
+                {p.rank <= 3 ? MEDALS[p.rank - 1] : `${p.rank}.`} {characterEmoji(p.avatar)} {p.nickname} <span style={{ color: '#888', fontWeight: 400, fontSize: 17 }}>({p.padron})</span>
               </span>
-              <span style={{ color: '#1976d2' }}>{p.score}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                {showDelta && p.prevRank != null && <RankDelta delta={p.prevRank - p.rank} size={18} />}
+                <span style={{ color: '#1976d2' }}>{p.score}</span>
+              </span>
             </div>
           ))}
         </div>
@@ -501,7 +521,9 @@ const HostGame: React.FC = () => {
                         👑
                       </div>
                     )}
-                    <div style={{ fontSize: 54 }}>{MEDALS[pos]}</div>
+                    <div style={{ fontSize: 54 }}>
+                      {MEDALS[pos]} <span style={{ fontSize: 48 }}>{characterEmoji(p.avatar)}</span>
+                    </div>
                     <div
                       style={{
                         color: '#fff',
@@ -623,7 +645,7 @@ const Screen: React.FC<{ children: React.ReactNode; align?: string }> = ({ child
       padding: '32px 40px',
     }}
   >
-    <BackgroundMusic />
+    <MuteButton />
     {children}
   </div>
 );

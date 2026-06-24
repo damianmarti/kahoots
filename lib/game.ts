@@ -20,10 +20,14 @@ export function cuatrimestreNow(date = new Date()): string {
   return `${date.getFullYear()}-${date.getMonth() + 1 <= 7 ? 1 : 2}`;
 }
 
-export function computePoints(isCorrect: boolean, responseMs: number, timeLimitMs: number): number {
-  if (!isCorrect) return 0;
+// fraction es la proporción de acierto (0..1): 1 = respuesta totalmente
+// correcta, valores intermedios = crédito parcial (multiple choice con varias
+// respuestas correctas). Los puntos siguen escalando con la velocidad.
+export function computePoints(fraction: number, responseMs: number, timeLimitMs: number): number {
+  if (fraction <= 0) return 0;
+  const f = Math.min(fraction, 1);
   const t = Math.min(Math.max(responseMs, 0), timeLimitMs);
-  return Math.round(1000 * (1 - t / timeLimitMs / 2));
+  return Math.round(1000 * f * (1 - t / timeLimitMs / 2));
 }
 
 // If the current question's time is up, move the game to 'reveal'.
@@ -54,15 +58,52 @@ export async function maybeCloseIfAllAnswered(gameId: number): Promise<void> {
   );
 }
 
+// Subconsulta (con $1 = game_id) que devuelve el id de la pregunta recién
+// jugada (la de current_question_index). Se usa para calcular prev_rank: la
+// posición de cada jugador antes de sumar los puntos de esa pregunta.
+const CURRENT_QUESTION_ID_SQL = `SELECT q.id FROM games g
+   JOIN questions q ON q.quiz_id = g.quiz_id AND q.position = g.current_question_index
+   WHERE g.id = $1`;
+
 export async function getLeaderboard(gameId: number, limit = 5) {
+  // prev_rank: posición que tenía cada jugador antes de sumar los puntos de la
+  // pregunta recién jugada, para mostrar cuánto subió o bajó en los podios parciales.
   const { rows } = await pool.query(
-    `SELECT padron, nickname, score, RANK() OVER (ORDER BY score DESC) AS rank
-     FROM game_players WHERE game_id = $1
+    `WITH scored AS (
+       SELECT p.padron, p.nickname, p.avatar, p.score, p.joined_at,
+              p.score - COALESCE(a.points, 0) AS prev_score
+       FROM game_players p
+       LEFT JOIN game_answers a ON a.player_id = p.id AND a.question_id = (${CURRENT_QUESTION_ID_SQL})
+       WHERE p.game_id = $1
+     )
+     SELECT padron, nickname, avatar, score,
+            RANK() OVER (ORDER BY score DESC) AS rank,
+            RANK() OVER (ORDER BY prev_score DESC) AS prev_rank
+     FROM scored
      ORDER BY score DESC, joined_at ASC
      LIMIT $2`,
     [gameId, limit],
   );
-  return rows.map(r => ({ padron: r.padron, nickname: r.nickname, score: r.score, rank: Number(r.rank) }));
+  return rows.map(r => ({ padron: r.padron, nickname: r.nickname, avatar: r.avatar, score: r.score, rank: Number(r.rank), prevRank: Number(r.prev_rank) }));
+}
+
+// Rank (actual y previo) de un único jugador, aunque no esté en el top del
+// leaderboard. Reusa el mismo cálculo de prev_rank que getLeaderboard.
+export async function getPlayerRank(gameId: number, playerId: number) {
+  const {
+    rows: [me],
+  } = await pool.query(
+    `SELECT score, rank, prev_rank FROM (
+       SELECT p.id, p.score,
+              RANK() OVER (ORDER BY p.score DESC) AS rank,
+              RANK() OVER (ORDER BY p.score - COALESCE(a.points, 0) DESC) AS prev_rank
+       FROM game_players p
+       LEFT JOIN game_answers a ON a.player_id = p.id AND a.question_id = (${CURRENT_QUESTION_ID_SQL})
+       WHERE p.game_id = $1
+     ) r WHERE id = $2`,
+    [gameId, playerId],
+  );
+  return { score: me.score, rank: Number(me.rank), prevRank: Number(me.prev_rank) };
 }
 
 // Game row + current question info + server-computed remaining time, in one query

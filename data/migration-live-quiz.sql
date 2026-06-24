@@ -56,6 +56,7 @@ CREATE TABLE game_players (
     game_id INT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
     padron VARCHAR(20) NOT NULL,
     nickname VARCHAR(50) NOT NULL,
+    avatar VARCHAR(20) NOT NULL DEFAULT 'fox', -- personaje elegido por el jugador (ver lib/characters.ts)
     session_token VARCHAR(64) NOT NULL, -- se rota cuando otro dispositivo entra con el mismo padron (kick)
     score INT NOT NULL DEFAULT 0,
     joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),

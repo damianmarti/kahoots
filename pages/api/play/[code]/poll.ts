@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { pool } from '../../../../lib/db';
-import { maybeExpireQuestion, getGameState, getLeaderboard } from '../../../../lib/game';
+import { maybeExpireQuestion, getGameState, getLeaderboard, getPlayerRank } from '../../../../lib/game';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const code = ((req.query.code as string) || '').toUpperCase();
@@ -14,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const {
       rows: [player],
     } = await pool.query(
-      `SELECT p.id, p.padron, p.nickname, p.score, g.id AS game_id
+      `SELECT p.id, p.padron, p.nickname, p.avatar, p.score, g.id AS game_id
        FROM games g JOIN game_players p ON p.game_id = g.id AND p.session_token = $2
        WHERE g.code = $1`,
       [code, token],
@@ -34,6 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       questionIndex: game.current_question_index,
       totalQuestions: game.total_questions,
       nickname: player.nickname,
+      character: player.avatar,
       score: player.score,
     };
 
@@ -79,19 +80,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (game.status === 'leaderboard' || game.status === 'podium') {
       const leaderboard = await getLeaderboard(player.game_id, game.status === 'podium' ? 3 : 5);
-      const {
-        rows: [me],
-      } = await pool.query(
-        `SELECT score, rank FROM (
-           SELECT id, score, RANK() OVER (ORDER BY score DESC) AS rank FROM game_players WHERE game_id = $1
-         ) r WHERE id = $2`,
-        [player.game_id, player.id],
-      );
+      const me = await getPlayerRank(player.game_id, player.id);
       return res.status(200).json({
         ...base,
         leaderboard,
         yourScore: me.score,
-        yourRank: Number(me.rank),
+        yourRank: me.rank,
+        yourPrevRank: me.prevRank,
       });
     }
 

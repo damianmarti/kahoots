@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
+import RankDelta from '../../components/RankDelta';
+import { CHARACTERS, DEFAULT_CHARACTER, characterEmoji } from '../../lib/characters';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
 
@@ -9,6 +11,7 @@ interface PlayState {
   questionIndex: number | null;
   totalQuestions: number;
   nickname: string;
+  character?: string;
   score: number;
   playerCount?: number;
   question?: {
@@ -30,11 +33,14 @@ interface PlayState {
   leaderboard?: {
     padron: string;
     nickname: string;
+    avatar?: string;
     score: number;
     rank: number;
+    prevRank?: number;
   }[];
   yourScore?: number;
   yourRank?: number;
+  yourPrevRank?: number;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -55,6 +61,7 @@ const PlayGame: React.FC = () => {
   const [kicked, setKicked] = useState(false);
   const [padron, setPadron] = useState('');
   const [nickname, setNickname] = useState('');
+  const [character, setCharacter] = useState(DEFAULT_CHARACTER);
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
@@ -137,7 +144,7 @@ const PlayGame: React.FC = () => {
       const res = await fetch(`/api/play/${code}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ padron, nickname }),
+        body: JSON.stringify({ padron, nickname, character }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -244,9 +251,37 @@ const PlayGame: React.FC = () => {
               <label style={{ fontWeight: 500 }}>Padrón:</label>
               <input type="text" inputMode="numeric" pattern="\d{4,20}" value={padron} onChange={e => setPadron(e.target.value)} required style={{ ...inputStyle, marginTop: 6 }} />
             </div>
-            <div style={{ marginBottom: 22 }}>
+            <div style={{ marginBottom: 16 }}>
               <label style={{ fontWeight: 500 }}>Nickname:</label>
               <input type="text" maxLength={50} value={nickname} onChange={e => setNickname(e.target.value)} required style={{ ...inputStyle, marginTop: 6 }} />
+            </div>
+            <div style={{ marginBottom: 22 }}>
+              <label style={{ fontWeight: 500 }}>Personaje:</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, marginTop: 8 }}>
+                {CHARACTERS.map(c => {
+                  const selected = c.id === character;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setCharacter(c.id)}
+                      title={c.label}
+                      aria-label={c.label}
+                      aria-pressed={selected}
+                      style={{
+                        fontSize: 26,
+                        padding: '8px 0',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        background: selected ? '#e3f2fd' : '#f5f5f5',
+                        border: selected ? '2px solid #1976d2' : '2px solid transparent',
+                      }}
+                    >
+                      {c.emoji}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <button
               type="submit"
@@ -297,7 +332,7 @@ const PlayGame: React.FC = () => {
     return (
       <Screen>
         <div className="anim-fade-in-scale" style={{ textAlign: 'center', color: '#fff' }}>
-          <div style={{ fontSize: 56, marginBottom: 14 }}>✅</div>
+          <div style={{ fontSize: 64, marginBottom: 14 }}>{characterEmoji(state.character)}</div>
           <h2 style={{ fontSize: 28, margin: 0 }}>¡Ya estás dentro, {state.nickname}!</h2>
           <div style={{ fontSize: 19, marginTop: 12, opacity: 0.85 }}>Esperá a que empiece el juego...</div>
           <div style={{ fontSize: 17, marginTop: 20, opacity: 0.7 }}>
@@ -386,6 +421,22 @@ const PlayGame: React.FC = () => {
             />
           )}
         </div>
+        {isMulti && (
+          <div
+            style={{
+              background: 'rgba(255,255,255,0.18)',
+              color: '#fff',
+              borderRadius: 8,
+              padding: '10px 14px',
+              marginBottom: 12,
+              textAlign: 'center',
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            ✓ Puede haber varias respuestas correctas — seleccioná todas las que correspondan y tocá Enviar
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {state.options?.map((o, i) => {
             const isSelected = selected.includes(o.id);
@@ -456,12 +507,13 @@ const PlayGame: React.FC = () => {
   if (state.status === 'reveal') {
     const a = state.yourAnswer;
     const correct = a?.isCorrect === true;
+    const partial = !!a && !correct && a.points > 0;
     return (
-      <Screen color={a ? (correct ? '#1b5e20' : '#b71c1c') : undefined}>
+      <Screen color={a ? (correct ? '#1b5e20' : partial ? '#e65100' : '#b71c1c') : undefined}>
         <div className="anim-fade-in-scale" style={{ textAlign: 'center', color: '#fff' }}>
-          <div style={{ fontSize: 60, marginBottom: 14 }}>{a ? (correct ? '🎉' : '😞') : '⏱'}</div>
-          <h2 style={{ fontSize: 30, margin: 0 }}>{a ? (correct ? '¡Correcto!' : 'Incorrecto') : 'No respondiste'}</h2>
-          {a && correct && <div style={{ fontSize: 24, marginTop: 12, fontWeight: 700 }}>+{a.points} puntos</div>}
+          <div style={{ fontSize: 60, marginBottom: 14 }}>{a ? (correct ? '🎉' : partial ? '👏' : '😞') : '⏱'}</div>
+          <h2 style={{ fontSize: 30, margin: 0 }}>{a ? (correct ? '¡Correcto!' : partial ? '¡Casi! Parcialmente correcto' : 'Incorrecto') : 'No respondiste'}</h2>
+          {a && a.points > 0 && <div style={{ fontSize: 24, marginTop: 12, fontWeight: 700 }}>+{a.points} puntos</div>}
           <div style={{ fontSize: 18, marginTop: 18, opacity: 0.85 }}>Puntaje total: {state.score}</div>
         </div>
       </Screen>
@@ -470,6 +522,8 @@ const PlayGame: React.FC = () => {
 
   if (state.status === 'leaderboard' || state.status === 'podium') {
     const isPodium = state.status === 'podium';
+    // En la primera pregunta todos partían empatados: el delta no es significativo.
+    const showDelta = !isPodium && (state.questionIndex ?? 0) > 0;
     if (isPodium && !showFinal) {
       return (
         <Screen>
@@ -507,9 +561,12 @@ const PlayGame: React.FC = () => {
               fontWeight: 800,
             }}
           >
-            <div style={{ fontSize: 40 }}>#{state.yourRank}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+              <span style={{ fontSize: 40 }}>#{state.yourRank}</span>
+              {showDelta && state.yourPrevRank != null && <RankDelta delta={state.yourPrevRank - (state.yourRank ?? 0)} size={22} />}
+            </div>
             <div style={{ fontSize: 20 }}>
-              {state.nickname} — {state.yourScore} puntos
+              {characterEmoji(state.character)} {state.nickname} — {state.yourScore} puntos
             </div>
           </div>
           {state.leaderboard?.map(p => (
@@ -527,9 +584,12 @@ const PlayGame: React.FC = () => {
               }}
             >
               <span>
-                {p.rank}. {p.nickname}
+                {p.rank}. {characterEmoji(p.avatar)} {p.nickname}
               </span>
-              <span>{p.score}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {showDelta && p.prevRank != null && <RankDelta delta={p.prevRank - p.rank} light />}
+                <span>{p.score}</span>
+              </span>
             </div>
           ))}
         </div>

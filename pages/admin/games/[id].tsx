@@ -120,6 +120,8 @@ const GameReport: React.FC<{ admin: AdminSession }> = () => {
                         <span style={{ color: '#bbb' }}>—</span>
                       ) : a.isCorrect ? (
                         <span style={{ color: '#388e3c', fontWeight: 700 }}>✓</span>
+                      ) : a.points > 0 ? (
+                        <span style={{ color: '#e65100', fontWeight: 700 }}>◐</span>
                       ) : (
                         <span style={{ color: '#d32f2f', fontWeight: 700 }}>✗</span>
                       )}
