@@ -105,6 +105,7 @@ function MyApp({ Component, pageProps }: AppProps) {
           </div>
         ) : (
           <NavLink href="/admin/login">Admin</NavLink>
+        )}
       </nav>
       <Component {...pageProps} />
     </>
