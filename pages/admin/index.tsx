@@ -24,7 +24,7 @@ const btnStyle = (bg: string): React.CSSProperties => ({
   marginRight: 8,
 });
 
-const AdminDashboard: React.FC<{ admin: AdminSession }> = ({ admin }) => {
+const AdminDashboard: React.FC<{ admin: AdminSession }> = () => {
   const router = useRouter();
   const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,36 +58,13 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = ({ admin }) => {
     else setError(data.error || 'No se pudo duplicar.');
   };
 
-  const logout = async () => {
-    await fetch('/api/admin/logout', { method: 'POST' });
-    router.push('/admin/login');
-  };
-
   return (
     <div style={{ minHeight: '80vh', background: '#f6f8fa', padding: '0 16px 48px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h2 style={{ fontSize: 28, fontWeight: 700, color: '#1976d2' }}>Cuestionarios</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ color: '#666' }}>{admin.username}</span>
-            <button onClick={logout} style={{ ...btnStyle('#888'), marginRight: 0 }}>
-              Salir
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
           <Link href="/admin/quizzes/new" legacyBehavior>
-            <a style={{ ...btnStyle('#1976d2'), textDecoration: 'none', display: 'inline-block' }}>+ Nuevo cuestionario</a>
-          </Link>
-          <Link href="/admin/games" legacyBehavior>
-            <a style={{ ...btnStyle('#455a64'), textDecoration: 'none', display: 'inline-block' }}>Juegos</a>
-          </Link>
-          <Link href="/admin/students" legacyBehavior>
-            <a style={{ ...btnStyle('#455a64'), textDecoration: 'none', display: 'inline-block' }}>Alumnos</a>
-          </Link>
-          <Link href="/admin/users" legacyBehavior>
-            <a style={{ ...btnStyle('#455a64'), textDecoration: 'none', display: 'inline-block' }}>Admins</a>
+            <a style={{ ...btnStyle('#1976d2'), textDecoration: 'none', display: 'inline-block', marginRight: 0 }}>+ Nuevo cuestionario</a>
           </Link>
         </div>
 
