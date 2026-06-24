@@ -7,7 +7,11 @@ const RankDelta: React.FC<{ delta: number; light?: boolean; size?: number }> = (
   const up = delta > 0;
   const color = up ? (light ? '#69f0ae' : '#2e7d32') : light ? '#ff8a80' : '#c62828';
   return (
-    <span style={{ color, fontSize: size, fontWeight: 800 }}>
+    <span
+      role="img"
+      aria-label={up ? `Subió ${Math.abs(delta)} posiciones` : `Bajó ${Math.abs(delta)} posiciones`}
+      style={{ color, fontSize: size, fontWeight: 800 }}
+    >
       {up ? '▲' : '▼'}
       {Math.abs(delta)}
     </span>
