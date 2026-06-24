@@ -31,15 +31,21 @@ export function useHostAudio(status: string | undefined, podiumStage: number) {
   useEffect(() => {
     const audio = getHostAudio();
     const prev = prevStatus.current;
+    let t: ReturnType<typeof setTimeout> | null = null;
+
     if (status && status !== prev) {
       if (status === 'title') audio.playSfx('ready');
       if (status === 'reveal' && prev === 'question') {
         audio.playSfx('timeUp');
-        setTimeout(() => audio.playSfx('correct'), 700);
+        t = setTimeout(() => audio.playSfx('correct'), 700);
       }
       if (status === 'podium') audio.playSfx('drumroll');
       prevStatus.current = status;
     }
+
+    return () => {
+      if (t) clearTimeout(t);
+    };
   }, [status]);
 
   // Efectos al revelar cada ganador del podio.
