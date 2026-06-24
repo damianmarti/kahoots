@@ -15,7 +15,7 @@ const HomePage: React.FC = () => {
         alignItems: 'center',
       }}>
         <img
-          src="https://www.fi.uba.ar/images/logo-fiuba.png"
+          src="/logo-fiuba.png"
           alt="Facultad de Ingenieria UBA Logo"
           style={{ maxWidth: 180, width: '100%', marginBottom: 32, filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.10))' }}
         />
