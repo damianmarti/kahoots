@@ -16,6 +16,9 @@ function MyApp({ Component, pageProps }: AppProps) {
   // Se consulta la sesión al montar y en cada navegación, para que el menú se
   // actualice tras iniciar o cerrar sesión.
   useEffect(() => {
+    // En /play y /host no se muestra el nav; evitamos requests extra durante el juego en vivo.
+    if (router.pathname.startsWith('/play') || router.pathname.startsWith('/host')) return;
+
     let cancelled = false;
     fetch('/api/admin/me')
       .then(res => (res.ok ? res.json() : null))
@@ -28,7 +31,7 @@ function MyApp({ Component, pageProps }: AppProps) {
     return () => {
       cancelled = true;
     };
-  }, [router.asPath]);
+  }, [router.asPath, router.pathname]);
 
   const logout = async () => {
     await fetch('/api/admin/logout', { method: 'POST' });
