@@ -51,6 +51,13 @@ function newQuestion(type: EditorQuestion['type'] = 'single'): EditorQuestion {
 
 // Ninguna opción viene pre-marcada como correcta: el admin debe elegirla
 // explícitamente (la validación al guardar exige exactamente una)
+// Una pregunta recién agregada, sin tocar: ojo que verdadero/falso trae las
+// opciones con texto fijo, así que no alcanza con pedir que estén vacías
+function isBlank(q: EditorQuestion): boolean {
+  const defaults = optionsForType(q.type);
+  return !q.text.trim() && !q.imageUrl && q.options.length === defaults.length && q.options.every((o, i) => !o.isCorrect && o.text === defaults[i].text);
+}
+
 function optionsForType(type: EditorQuestion['type']): EditorOption[] {
   if (type === 'true_false') {
     return [
@@ -127,7 +134,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
   // Precarga el editor con las preguntas de un export de resultados de Kahoot (.xlsx)
   const importKahoot = async (file: File) => {
     // El import reemplaza todo: si ya hay algo cargado a mano, se pregunta antes
-    const pristine = !name.trim() && questions.length === 1 && !questions[0].text.trim() && questions[0].options.every(o => !o.isCorrect && !o.text.trim());
+    const pristine = !name.trim() && questions.length === 1 && isBlank(questions[0]);
     if (!pristine && !window.confirm('Al importar se reemplazan el nombre y las preguntas que tengas cargadas. ¿Continuar?')) return;
     setImporting(true);
     setError(null);

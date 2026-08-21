@@ -114,20 +114,26 @@ function isTrueFalse(answers: string[]): boolean {
 // también puede tenerlas: se intenta reconstruir la lista con las opciones
 // reales y recién ahí se cae al split por comas.
 function matchOptionSequence(correct: string, answers: string[]): string[] | null {
+  // Se prueba primero la opción más larga, pero con backtracking: si una opción
+  // es prefijo de otra, el camino equivocado no descarta el match entero.
   const longestFirst = [...answers].sort((a, b) => b.length - a.length);
-  const found: string[] = [];
-  let rest = correct;
-  while (rest) {
-    const option = longestFirst.find(a => rest.startsWith(a));
-    if (!option) return null;
-    found.push(option);
-    rest = rest.slice(option.length);
-    if (!rest) break;
-    const separator = rest.match(/^\s*,\s*/);
-    if (!separator) return null;
-    rest = rest.slice(separator[0].length);
-  }
-  return found.length > 0 ? found : null;
+  const match = (rest: string): string[] | null => {
+    if (!rest) return [];
+    for (const option of longestFirst) {
+      if (!rest.startsWith(option)) continue;
+      let tail = rest.slice(option.length);
+      if (tail) {
+        const separator = tail.match(/^\s*,\s*/);
+        if (!separator) continue;
+        tail = tail.slice(separator[0].length);
+      }
+      const found = match(tail);
+      if (found) return [option, ...found];
+    }
+    return null;
+  };
+  const found = match(correct);
+  return found && found.length > 0 ? found : null;
 }
 
 // "Correct Answers" viene como texto: una opción exacta o varias unidas por comas
@@ -153,7 +159,11 @@ function quote(text: string): string {
 type BuildResult = { question: QuizQuestionInput; warnings: string[] } | { skipped: string };
 
 function buildQuestion(raw: RawQuestion): BuildResult {
-  if (!raw.text) return { skipped: 'una pregunta sin enunciado (¿era solo una imagen?).' };
+  if (!raw.text) {
+    // Sin enunciado no hay cómo nombrarla: se citan las opciones para poder ubicarla
+    const hint = raw.answers.length > 0 ? ` con las opciones ${raw.answers.slice(0, 2).map(quote).join(', ')}${raw.answers.length > 2 ? '...' : ''}` : '';
+    return { skipped: `una pregunta sin enunciado${hint} (¿era solo una imagen?).` };
+  }
   if (raw.answers.length < 2) return { skipped: `${quote(raw.text)}: no es multiple choice ni verdadero/falso.` };
 
   const warnings: string[] = [];
