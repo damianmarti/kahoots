@@ -8,12 +8,12 @@ import { getAdmin } from '../../../../lib/auth';
 import { parseKahootWorkbook, KahootImportError } from '../../../../lib/kahoot-import';
 
 // Límite de tamaño para evitar agotar /tmp o memoria/CPU (DoS) al leer el xlsx.
-const upload = multer({ dest: '/tmp', limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({ dest: '/tmp', limits: { fileSize: 4 * 1024 * 1024 } });
 
 const apiRoute = nextConnect<NextApiRequest, NextApiResponse>({
   onError(error: any, req, res) {
     if (error?.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'El archivo es demasiado grande (máx. 10 MB).' });
+      return res.status(400).json({ error: 'El archivo es demasiado grande (máx. 4 MB).' });
     }
     console.error('quizzes/import error:', error);
     res.status(500).json({ error: 'Algo salió mal al procesar el archivo.' });

@@ -90,17 +90,15 @@ function readQuestions(sheet: Worksheet, header: { row: number; cols: RawColumns
   for (let r = header.row + 1; r <= sheet.rowCount; r++) {
     const row = sheet.getRow(r);
     const text = cleanText(row.getCell(cols.text).text);
-    if (!text) continue;
-    const key = (cols.number ? row.getCell(cols.number).text.trim() : '') || text;
+    const answers = cols.answers.map(c => cleanText(row.getCell(c).text)).filter(a => a && a !== '-');
+    const correct = cleanText(row.getCell(cols.correct).text);
+    if (!text && answers.length === 0) continue; // fila vacía o separadora
+    // Sin columna de número hay que deduplicar por contenido: dos preguntas con
+    // el mismo enunciado siguen siendo distintas si cambian sus respuestas.
+    const key = (cols.number ? row.getCell(cols.number).text.trim() : '') || [text, ...answers, correct].join('|');
     if (seen.has(key)) continue;
     seen.add(key);
-    questions.push({
-      key,
-      text,
-      answers: cols.answers.map(c => cleanText(row.getCell(c).text)).filter(a => a && a !== '-'),
-      correct: cleanText(row.getCell(cols.correct).text),
-      time: cols.time ? parseFloat(row.getCell(cols.time).text) : 0,
-    });
+    questions.push({ key, text, answers, correct, time: cols.time ? parseFloat(row.getCell(cols.time).text) : 0 });
   }
   return questions;
 }
@@ -112,67 +110,100 @@ function isTrueFalse(answers: string[]): boolean {
   return answers.length === 2 && answers.some(a => TRUE_LABELS.test(a)) && answers.some(a => FALSE_LABELS.test(a));
 }
 
-// "Correct Answers" viene como texto: puede ser una opción exacta o varias separadas por coma
+// Kahoot une las respuestas correctas con comas, pero el texto de una opción
+// también puede tenerlas: se intenta reconstruir la lista con las opciones
+// reales y recién ahí se cae al split por comas.
+function matchOptionSequence(correct: string, answers: string[]): string[] | null {
+  const longestFirst = [...answers].sort((a, b) => b.length - a.length);
+  const found: string[] = [];
+  let rest = correct;
+  while (rest) {
+    const option = longestFirst.find(a => rest.startsWith(a));
+    if (!option) return null;
+    found.push(option);
+    rest = rest.slice(option.length);
+    if (!rest) break;
+    const separator = rest.match(/^\s*,\s*/);
+    if (!separator) return null;
+    rest = rest.slice(separator[0].length);
+  }
+  return found.length > 0 ? found : null;
+}
+
+// "Correct Answers" viene como texto: una opción exacta o varias unidas por comas
 function correctAnswers(correct: string, answers: string[]): string[] {
   if (!correct || correct === '-') return [];
   if (answers.some(a => a === correct)) return [correct];
-  return correct
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
+  return (
+    matchOptionSequence(correct, answers) ||
+    correct
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+  );
 }
 
-function buildQuestion(raw: RawQuestion, result: ImportResult, position: number): QuizQuestionInput | null {
-  const label = `Pregunta ${position}`;
-  if (raw.answers.length < 2) {
-    result.skipped.push(`${label} ("${raw.text}"): no es multiple choice ni verdadero/falso.`);
-    return null;
-  }
+// Enunciados largos: se recortan para los mensajes al admin
+function quote(text: string): string {
+  return `"${text.length > 80 ? `${text.slice(0, 77)}...` : text}"`;
+}
+
+// Los avisos salen sin numerar: la posición final la pone parseKahootWorkbook,
+// que es el que sabe cuántas preguntas anteriores se saltearon.
+type BuildResult = { question: QuizQuestionInput; warnings: string[] } | { skipped: string };
+
+function buildQuestion(raw: RawQuestion): BuildResult {
+  if (!raw.text) return { skipped: 'una pregunta sin enunciado (¿era solo una imagen?).' };
+  if (raw.answers.length < 2) return { skipped: `${quote(raw.text)}: no es multiple choice ni verdadero/falso.` };
+
+  const warnings: string[] = [];
   const corrects = correctAnswers(raw.correct, raw.answers);
   if (corrects.length === 0) {
-    result.skipped.push(`${label} ("${raw.text}"): no tiene respuesta correcta (encuesta o pregunta abierta).`);
-    return null;
+    return { skipped: `${quote(raw.text)}: no tiene respuesta correcta (encuesta o pregunta abierta).` };
   }
-  const matched = corrects.filter(c => raw.answers.includes(c));
-  if (matched.length === 0) {
-    result.skipped.push(`${label} ("${raw.text}"): no se pudo identificar la respuesta correcta.`);
-    return null;
+  // Se marca por posición: si dos opciones comparten texto, solo se marca la primera libre
+  const correctIdx = new Set<number>();
+  let unmatched = 0;
+  for (const text of corrects) {
+    const idx = raw.answers.findIndex((a, i) => a === text && !correctIdx.has(i));
+    if (idx === -1) unmatched++;
+    else correctIdx.add(idx);
   }
-  if (matched.length < corrects.length) {
-    result.warnings.push(`${label}: alguna respuesta correcta del export no coincide con las opciones; revisá las marcadas.`);
-  }
+  if (correctIdx.size === 0) return { skipped: `${quote(raw.text)}: no se pudo identificar la respuesta correcta.` };
+  if (unmatched > 0) warnings.push('alguna respuesta correcta del export no coincide con las opciones; revisá las marcadas.');
 
   const trueFalse = isTrueFalse(raw.answers);
-  const options: QuizOptionInput[] = raw.answers.map(text => ({
+  const options: QuizOptionInput[] = raw.answers.map((text, i) => ({
     text: trueFalse ? (TRUE_LABELS.test(text) ? 'Verdadero' : 'Falso') : text,
-    isCorrect: matched.includes(text),
+    isCorrect: correctIdx.has(i),
   }));
 
   let type: QuizQuestionInput['type'];
   if (trueFalse) {
     type = 'true_false';
   } else {
-    type = matched.length > 1 ? 'multi' : 'single';
+    type = correctIdx.size > 1 ? 'multi' : 'single';
     // El editor y el juego trabajan con 4 opciones fijas
-    while (options.length < 4) options.push({ text: '', isCorrect: false });
-    const missing = 4 - raw.answers.length;
-    if (missing > 0) {
-      result.warnings.push(`${label}: tenía ${raw.answers.length} opciones en Kahoot; ${missing === 1 ? 'completá la restante' : `completá las ${missing} restantes`}.`);
-    } else if (raw.answers.length > 4) {
+    if (options.length > 4) {
+      if ([...correctIdx].some(i => i >= 4)) {
+        return { skipped: `${quote(raw.text)}: la respuesta correcta quedó fuera de las primeras 4 opciones.` };
+      }
+      warnings.push(`tenía ${options.length} opciones en Kahoot y solo se importaron las primeras 4.`);
       options.length = 4;
-      result.warnings.push(`${label}: tenía ${raw.answers.length} opciones en Kahoot y solo se importaron las primeras 4.`);
-    }
-    if (!options.some(o => o.isCorrect)) {
-      result.skipped.push(`${label} ("${raw.text}"): la respuesta correcta quedó fuera de las primeras 4 opciones.`);
-      return null;
+    } else if (options.length < 4) {
+      const missing = 4 - options.length;
+      warnings.push(`tenía ${options.length} opciones en Kahoot; ${missing === 1 ? 'completá la restante' : `completá las ${missing} restantes`}.`);
+      while (options.length < 4) options.push({ text: '', isCorrect: false });
     }
   }
 
-  return { type, text: raw.text, imageUrl: null, timeLimit: mapTimeLimit(raw.time), options };
+  return { question: { type, text: raw.text, imageUrl: null, timeLimit: mapTimeLimit(raw.time), options }, warnings };
 }
 
+// El título del kahoot está en A1 de la hoja "Overview"; sin esa hoja no hay
+// dónde buscarlo (A1 de cualquier otra es un encabezado de columna)
 function quizName(workbook: Workbook, fallback: string): string {
-  const overview = workbook.worksheets.find(ws => /^overview$/i.test(ws.name)) || workbook.worksheets[0];
+  const overview = workbook.worksheets.find(ws => /^overview$/i.test(ws.name));
   const title = overview ? cleanText(overview.getRow(1).getCell(1).text) : '';
   return title || fallback;
 }
@@ -188,12 +219,18 @@ export function parseKahootWorkbook(workbook: Workbook, fallbackName: string): I
   const raws = readQuestions(sheet, header);
   if (raws.length === 0) throw new KahootImportError('No se encontraron preguntas en el archivo.');
   let timeAdjusted = 0;
-  raws.forEach((raw, i) => {
-    const question = buildQuestion(raw, result, i + 1);
-    if (!question) return;
-    if (raw.time && question.timeLimit !== raw.time) timeAdjusted++;
-    result.quiz.questions.push(question);
-  });
+  for (const raw of raws) {
+    const built = buildQuestion(raw);
+    if ('skipped' in built) {
+      result.skipped.push(built.skipped);
+      continue;
+    }
+    // La numeración es la que va a ver el admin en el editor, sin las salteadas
+    const label = `Pregunta ${result.quiz.questions.length + 1}`;
+    for (const warning of built.warnings) result.warnings.push(`${label}: ${warning}`);
+    if (raw.time && built.question.timeLimit !== raw.time) timeAdjusted++;
+    result.quiz.questions.push(built.question);
+  }
   if (timeAdjusted > 0) {
     result.warnings.push(
       timeAdjusted === 1

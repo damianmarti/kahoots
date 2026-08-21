@@ -126,6 +126,9 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
 
   // Precarga el editor con las preguntas de un export de resultados de Kahoot (.xlsx)
   const importKahoot = async (file: File) => {
+    // El import reemplaza todo: si ya hay algo cargado a mano, se pregunta antes
+    const pristine = !name.trim() && questions.length === 1 && !questions[0].text.trim() && questions[0].options.every(o => !o.isCorrect && !o.text.trim());
+    if (!pristine && !window.confirm('Al importar se reemplazan el nombre y las preguntas que tengas cargadas. ¿Continuar?')) return;
     setImporting(true);
     setError(null);
     setImportNotes(null);
