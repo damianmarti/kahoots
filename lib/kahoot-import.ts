@@ -4,10 +4,19 @@ import { TIME_LIMITS, QuizInput, QuizQuestionInput, QuizOptionInput } from './qu
 // Errores con mensaje pensado para mostrarle al admin
 export class KahootImportError extends Error {}
 
+// Aviso sobre una pregunta importada que necesita retoques (opciones faltantes,
+// etc.). La numeración la pone el editor, que es el único que sabe en qué
+// posición terminan las preguntas: al crear arrancan en la 1, al importar sobre
+// un cuestionario existente van después de las que ya estaban.
+export interface ImportWarning {
+  // Índice en quiz.questions, o null si el aviso es sobre el import entero
+  question: number | null;
+  message: string;
+}
+
 export interface ImportResult {
   quiz: QuizInput;
-  // Preguntas importadas que necesitan retoques (opciones faltantes, etc.)
-  warnings: string[];
+  warnings: ImportWarning[];
   // Preguntas del export que no se pudieron importar (encuestas, nube de palabras, ...)
   skipped: string[];
 }
@@ -235,18 +244,18 @@ export function parseKahootWorkbook(workbook: Workbook, fallbackName: string): I
       result.skipped.push(built.skipped);
       continue;
     }
-    // La numeración es la que va a ver el admin en el editor, sin las salteadas
-    const label = `Pregunta ${result.quiz.questions.length + 1}`;
-    for (const warning of built.warnings) result.warnings.push(`${label}: ${warning}`);
+    for (const message of built.warnings) result.warnings.push({ question: result.quiz.questions.length, message });
     if (raw.time && built.question.timeLimit !== raw.time) timeAdjusted++;
     result.quiz.questions.push(built.question);
   }
   if (timeAdjusted > 0) {
-    result.warnings.push(
-      timeAdjusted === 1
-        ? 'El tiempo de 1 pregunta se ajustó al valor permitido más cercano.'
-        : `El tiempo de ${timeAdjusted} preguntas se ajustó al valor permitido más cercano.`,
-    );
+    result.warnings.push({
+      question: null,
+      message:
+        timeAdjusted === 1
+          ? 'El tiempo de 1 pregunta se ajustó al valor permitido más cercano.'
+          : `El tiempo de ${timeAdjusted} preguntas se ajustó al valor permitido más cercano.`,
+    });
   }
   if (result.quiz.questions.length === 0) throw new KahootImportError('No se pudo importar ninguna pregunta del archivo.');
   return result;

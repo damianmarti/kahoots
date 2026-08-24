@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
@@ -19,6 +19,15 @@ export interface EditorQuiz {
   name: string;
   questions: EditorQuestion[];
 }
+
+// Identidad estable de cada pregunta mientras se la edita: la posición cambia
+// (mover, borrar, importar) y cada cambio reemplaza el objeto, así que un
+// upload en curso necesita algo que sobreviva a las dos cosas. No se guarda:
+// se saca al mandar el cuestionario al server.
+type StatefulQuestion = EditorQuestion & { uid: string };
+
+let uidCounter = 0;
+const withUid = (q: EditorQuestion): StatefulQuestion => ({ ...q, uid: `q${++uidCounter}` });
 
 const TIME_LIMITS = [30, 45, 60, 90, 120];
 const TYPE_LABELS: Record<string, string> = {
@@ -49,8 +58,6 @@ function newQuestion(type: EditorQuestion['type'] = 'single'): EditorQuestion {
   };
 }
 
-// Ninguna opción viene pre-marcada como correcta: el admin debe elegirla
-// explícitamente (la validación al guardar exige exactamente una)
 // Una pregunta recién agregada, sin tocar: ojo que verdadero/falso trae las
 // opciones con texto fijo, así que no alcanza con pedir que estén vacías
 function isBlank(q: EditorQuestion): boolean {
@@ -58,6 +65,13 @@ function isBlank(q: EditorQuestion): boolean {
   return !q.text.trim() && !q.imageUrl && q.options.length === defaults.length && q.options.every((o, i) => !o.isCorrect && o.text === defaults[i].text);
 }
 
+// Formulario recién abierto: sin nombre y con la única pregunta sin tocar
+function isEmptyForm(name: string, questions: EditorQuestion[]): boolean {
+  return !name.trim() && questions.length === 1 && isBlank(questions[0]);
+}
+
+// Ninguna opción viene pre-marcada como correcta: el admin debe elegirla
+// explícitamente (la validación al guardar exige exactamente una)
 function optionsForType(type: EditorQuestion['type']): EditorOption[] {
   if (type === 'true_false') {
     return [
@@ -71,12 +85,12 @@ function optionsForType(type: EditorQuestion['type']): EditorOption[] {
 const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizId, initial }) => {
   const router = useRouter();
   const [name, setName] = useState(initial?.name || '');
-  const [questions, setQuestions] = useState<EditorQuestion[]>(initial?.questions || [newQuestion()]);
+  const [questions, setQuestions] = useState<StatefulQuestion[]>(() => (initial?.questions || [newQuestion()]).map(withUid));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const [uploadingUid, setUploadingUid] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-  const [importNotes, setImportNotes] = useState<{ count: number; warnings: string[]; skipped: string[] } | null>(null);
+  const [importNotes, setImportNotes] = useState<{ count: number; appended: boolean; warnings: string[]; skipped: string[] } | null>(null);
 
   const updateQuestion = (idx: number, patch: Partial<EditorQuestion>) => {
     setQuestions(qs => qs.map((q, i) => (i === idx ? { ...q, ...patch } : q)));
@@ -115,27 +129,37 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
   };
 
   const uploadImage = async (idx: number, file: File) => {
-    setUploadingIdx(idx);
+    // La imagen va a esta pregunta aunque mientras sube se la mueva o se la edite
+    const { uid } = questions[idx];
+    setUploadingUid(uid);
     setError(null);
     const formData = new FormData();
     formData.append('file', file);
     try {
       const res = await fetch('/api/admin/upload-image', { method: 'POST', body: formData });
       const data = await res.json();
-      if (res.ok) updateQuestion(idx, { imageUrl: data.url });
+      if (res.ok) setQuestions(qs => qs.map(q => (q.uid === uid ? { ...q, imageUrl: data.url } : q)));
       else setError(data.error || 'No se pudo subir la imagen.');
     } catch {
       setError('No se pudo subir la imagen.');
     } finally {
-      setUploadingIdx(null);
+      setUploadingUid(null);
     }
   };
 
-  // Precarga el editor con las preguntas de un export de resultados de Kahoot (.xlsx)
+  // Un formulario recién abierto se llena con el import; si ya hay preguntas
+  // cargadas (o se está editando un cuestionario), se agregan al final
+  const emptyForm = isEmptyForm(name, questions);
+
+  // El import se resuelve después del round-trip y mientras tanto se puede
+  // seguir escribiendo: este ref tiene el formulario como está en ese momento,
+  // así no se decide ni se numera sobre una foto vieja. Se asigna en el render
+  // y no en un effect, que se agenda como macrotask y llegaría tarde.
+  const formRef = useRef({ name, questions });
+  formRef.current = { name, questions };
+
+  // Carga las preguntas de un export de resultados de Kahoot (.xlsx)
   const importKahoot = async (file: File) => {
-    // El import reemplaza todo: si ya hay algo cargado a mano, se pregunta antes
-    const pristine = !name.trim() && questions.length === 1 && isBlank(questions[0]);
-    if (!pristine && !window.confirm('Al importar se reemplazan el nombre y las preguntas que tengas cargadas. ¿Continuar?')) return;
     setImporting(true);
     setError(null);
     setImportNotes(null);
@@ -148,9 +172,23 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         setError(data.error || 'No se pudo importar el archivo.');
         return;
       }
-      setName(data.quiz.name);
-      setQuestions(data.quiz.questions);
-      setImportNotes({ count: data.quiz.questions.length, warnings: data.warnings || [], skipped: data.skipped || [] });
+      const imported: StatefulQuestion[] = (data.quiz.questions as EditorQuestion[]).map(withUid);
+      const form = formRef.current;
+      const append = !isEmptyForm(form.name, form.questions);
+      // Las preguntas que quedaron vacías (la inicial, o alguna recién agregada)
+      // no sobreviven al append: bloquearían el guardado sin decir por qué
+      const kept = append ? form.questions.filter(q => !isBlank(q)) : [];
+      const dropped = append ? form.questions.length - kept.length : 0;
+      if (!append) setName(data.quiz.name);
+      setQuestions(append ? [...kept, ...imported] : imported);
+      const warnings: string[] = (data.warnings || []).map((w: { question: number | null; message: string }) =>
+        // Recién acá se puede numerar: el aviso trae el índice dentro del import
+        w.question === null ? w.message : `Pregunta ${kept.length + w.question + 1}: ${w.message}`,
+      );
+      if (dropped > 0) {
+        warnings.push(dropped === 1 ? 'Se quitó la pregunta vacía que había sin completar.' : `Se quitaron las ${dropped} preguntas vacías que había sin completar.`);
+      }
+      setImportNotes({ count: imported.length, appended: append && kept.length > 0, warnings, skipped: data.skipped || [] });
     } catch {
       setError('No se pudo importar el archivo.');
     } finally {
@@ -165,7 +203,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
       const res = await fetch(quizId ? `/api/admin/quizzes/${quizId}` : '/api/admin/quizzes', {
         method: quizId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, questions }),
+        body: JSON.stringify({ name, questions: questions.map(({ uid, ...q }) => q) }),
       });
       const data = await res.json();
       if (res.ok) router.push('/admin');
@@ -185,42 +223,43 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         </Link>
         <h2 style={{ fontSize: 28, fontWeight: 700, color: '#1976d2', margin: '16px 0 24px' }}>{quizId ? 'Editar cuestionario' : 'Nuevo cuestionario'}</h2>
 
-        {!quizId && (
-          <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
-            <label style={{ fontWeight: 500 }}>Importar desde Kahoot:</label>
-            <div style={{ color: '#666', fontSize: 14, margin: '6px 0 10px' }}>
-              Subí el Excel de resultados que descargás de Kahoot y se cargan las preguntas con sus opciones. Después revisá y guardá.
-            </div>
-            <input
-              type="file"
-              accept=".xlsx"
-              disabled={importing}
-              onChange={e => {
-                const file = e.target.files?.[0];
-                e.target.value = '';
-                if (file) importKahoot(file);
-              }}
-            />
-            {importing && <span style={{ marginLeft: 12, color: '#666' }}>Importando...</span>}
-            {importNotes && (
-              <div style={{ marginTop: 14, background: '#f0f4f8', borderRadius: 8, padding: '12px 16px', fontSize: 14 }}>
-                <div style={{ fontWeight: 600, marginBottom: importNotes.warnings.length || importNotes.skipped.length ? 8 : 0 }}>
-                  Se importaron {importNotes.count} {importNotes.count === 1 ? 'pregunta' : 'preguntas'}.
-                </div>
-                {importNotes.skipped.map((s, i) => (
-                  <div key={`s${i}`} style={{ color: '#d32f2f' }}>
-                    • No se importó: {s}
-                  </div>
-                ))}
-                {importNotes.warnings.map((w, i) => (
-                  <div key={`w${i}`} style={{ color: '#e65100' }}>
-                    • {w}
-                  </div>
-                ))}
-              </div>
-            )}
+        <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
+          <label style={{ fontWeight: 500 }}>Importar desde Kahoot:</label>
+          <div style={{ color: '#666', fontSize: 14, margin: '6px 0 10px' }}>
+            {emptyForm
+              ? 'Subí el Excel de resultados que descargás de Kahoot y se cargan las preguntas con sus opciones. Después revisá y guardá.'
+              : 'Subí el Excel de resultados que descargás de Kahoot y sus preguntas se agregan al final, sin tocar las que ya tenés.'}
           </div>
-        )}
+          <input
+            type="file"
+            accept=".xlsx"
+            disabled={importing || uploadingUid !== null}
+            onChange={e => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) importKahoot(file);
+            }}
+          />
+          {importing && <span style={{ marginLeft: 12, color: '#666' }}>Importando...</span>}
+          {importNotes && (
+            <div style={{ marginTop: 14, background: '#f0f4f8', borderRadius: 8, padding: '12px 16px', fontSize: 14 }}>
+              <div style={{ fontWeight: 600, marginBottom: importNotes.warnings.length || importNotes.skipped.length ? 8 : 0 }}>
+                Se {importNotes.appended ? 'agregaron' : 'importaron'} {importNotes.count} {importNotes.count === 1 ? 'pregunta' : 'preguntas'}
+                {importNotes.appended ? ' al final' : ''}.
+              </div>
+              {importNotes.skipped.map((s, i) => (
+                <div key={`s${i}`} style={{ color: '#d32f2f' }}>
+                  • No se importó: {s}
+                </div>
+              ))}
+              {importNotes.warnings.map((w, i) => (
+                <div key={`w${i}`} style={{ color: '#e65100' }}>
+                  • {w}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
           <label style={{ fontWeight: 500 }}>Nombre del cuestionario:</label>
@@ -228,17 +267,17 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         </div>
 
         {questions.map((q, idx) => (
-          <div key={idx} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
+          <div key={q.uid} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ fontWeight: 600 }}>Pregunta {idx + 1}</h3>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => move(idx, -1)} disabled={idx === 0} style={smallBtn('#888', idx === 0)}>
+                <button onClick={() => move(idx, -1)} disabled={importing || idx === 0} style={smallBtn('#888', importing || idx === 0)}>
                   ↑
                 </button>
-                <button onClick={() => move(idx, 1)} disabled={idx === questions.length - 1} style={smallBtn('#888', idx === questions.length - 1)}>
+                <button onClick={() => move(idx, 1)} disabled={importing || idx === questions.length - 1} style={smallBtn('#888', importing || idx === questions.length - 1)}>
                   ↓
                 </button>
-                <button onClick={() => setQuestions(qs => qs.filter((_, i) => i !== idx))} disabled={questions.length === 1} style={smallBtn('#d32f2f', questions.length === 1)}>
+                <button onClick={() => setQuestions(qs => qs.filter((_, i) => i !== idx))} disabled={importing || questions.length === 1} style={smallBtn('#d32f2f', importing || questions.length === 1)}>
                   Eliminar
                 </button>
               </div>
@@ -285,9 +324,9 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
                   </button>
                 </div>
               ) : (
-                <input type="file" accept="image/*" disabled={uploadingIdx === idx} onChange={e => e.target.files?.[0] && uploadImage(idx, e.target.files[0])} style={{ marginTop: 8 }} />
+                <input type="file" accept="image/*" disabled={importing || uploadingUid === q.uid} onChange={e => e.target.files?.[0] && uploadImage(idx, e.target.files[0])} style={{ marginTop: 8 }} />
               )}
-              {uploadingIdx === idx && <span style={{ marginLeft: 12, color: '#666' }}>Subiendo...</span>}
+              {uploadingUid === q.uid && <span style={{ marginLeft: 12, color: '#666' }}>Subiendo...</span>}
             </div>
 
             <label style={{ fontWeight: 500 }}>Opciones {q.type === 'multi' ? '(marcá todas las correctas)' : '(marcá la correcta)'}:</label>
@@ -321,10 +360,10 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         ))}
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button onClick={() => setQuestions(qs => [...qs, newQuestion()])} style={smallBtn('#455a64')}>
+          <button onClick={() => setQuestions(qs => [...qs, withUid(newQuestion())])} disabled={importing} style={smallBtn('#455a64', importing)}>
             + Agregar pregunta
           </button>
-          <button onClick={save} disabled={saving} style={smallBtn('#388e3c', saving)}>
+          <button onClick={save} disabled={saving || importing} style={smallBtn('#388e3c', saving || importing)}>
             {saving ? 'Guardando...' : 'Guardar cuestionario'}
           </button>
         </div>
