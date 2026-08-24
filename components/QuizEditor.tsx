@@ -88,7 +88,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
   const [questions, setQuestions] = useState<StatefulQuestion[]>(() => (initial?.questions || [newQuestion()]).map(withUid));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
+  const [uploadingUid, setUploadingUid] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importNotes, setImportNotes] = useState<{ count: number; appended: boolean; warnings: string[]; skipped: string[] } | null>(null);
 
@@ -131,7 +131,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
   const uploadImage = async (idx: number, file: File) => {
     // La imagen va a esta pregunta aunque mientras sube se la mueva o se la edite
     const { uid } = questions[idx];
-    setUploadingIdx(idx);
+    setUploadingUid(uid);
     setError(null);
     const formData = new FormData();
     formData.append('file', file);
@@ -143,7 +143,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
     } catch {
       setError('No se pudo subir la imagen.');
     } finally {
-      setUploadingIdx(null);
+      setUploadingUid(null);
     }
   };
 
@@ -233,7 +233,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
           <input
             type="file"
             accept=".xlsx"
-            disabled={importing || uploadingIdx !== null}
+            disabled={importing || uploadingUid !== null}
             onChange={e => {
               const file = e.target.files?.[0];
               e.target.value = '';
@@ -267,7 +267,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         </div>
 
         {questions.map((q, idx) => (
-          <div key={idx} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
+          <div key={q.uid} style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ fontWeight: 600 }}>Pregunta {idx + 1}</h3>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -324,9 +324,9 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
                   </button>
                 </div>
               ) : (
-                <input type="file" accept="image/*" disabled={importing || uploadingIdx === idx} onChange={e => e.target.files?.[0] && uploadImage(idx, e.target.files[0])} style={{ marginTop: 8 }} />
+                <input type="file" accept="image/*" disabled={importing || uploadingUid === q.uid} onChange={e => e.target.files?.[0] && uploadImage(idx, e.target.files[0])} style={{ marginTop: 8 }} />
               )}
-              {uploadingIdx === idx && <span style={{ marginLeft: 12, color: '#666' }}>Subiendo...</span>}
+              {uploadingUid === q.uid && <span style={{ marginLeft: 12, color: '#666' }}>Subiendo...</span>}
             </div>
 
             <label style={{ fontWeight: 500 }}>Opciones {q.type === 'multi' ? '(marcá todas las correctas)' : '(marcá la correcta)'}:</label>
