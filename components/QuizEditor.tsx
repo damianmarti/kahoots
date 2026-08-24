@@ -20,6 +20,15 @@ export interface EditorQuiz {
   questions: EditorQuestion[];
 }
 
+// Identidad estable de cada pregunta mientras se la edita: la posición cambia
+// (mover, borrar, importar) y cada cambio reemplaza el objeto, así que un
+// upload en curso necesita algo que sobreviva a las dos cosas. No se guarda:
+// se saca al mandar el cuestionario al server.
+type StatefulQuestion = EditorQuestion & { uid: string };
+
+let uidCounter = 0;
+const withUid = (q: EditorQuestion): StatefulQuestion => ({ ...q, uid: `q${++uidCounter}` });
+
 const TIME_LIMITS = [30, 45, 60, 90, 120];
 const TYPE_LABELS: Record<string, string> = {
   true_false: 'Verdadero / Falso',
@@ -49,8 +58,6 @@ function newQuestion(type: EditorQuestion['type'] = 'single'): EditorQuestion {
   };
 }
 
-// Ninguna opción viene pre-marcada como correcta: el admin debe elegirla
-// explícitamente (la validación al guardar exige exactamente una)
 // Una pregunta recién agregada, sin tocar: ojo que verdadero/falso trae las
 // opciones con texto fijo, así que no alcanza con pedir que estén vacías
 function isBlank(q: EditorQuestion): boolean {
@@ -63,6 +70,8 @@ function isEmptyForm(name: string, questions: EditorQuestion[]): boolean {
   return !name.trim() && questions.length === 1 && isBlank(questions[0]);
 }
 
+// Ninguna opción viene pre-marcada como correcta: el admin debe elegirla
+// explícitamente (la validación al guardar exige exactamente una)
 function optionsForType(type: EditorQuestion['type']): EditorOption[] {
   if (type === 'true_false') {
     return [
@@ -76,7 +85,7 @@ function optionsForType(type: EditorQuestion['type']): EditorOption[] {
 const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizId, initial }) => {
   const router = useRouter();
   const [name, setName] = useState(initial?.name || '');
-  const [questions, setQuestions] = useState<EditorQuestion[]>(initial?.questions || [newQuestion()]);
+  const [questions, setQuestions] = useState<StatefulQuestion[]>(() => (initial?.questions || [newQuestion()]).map(withUid));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
@@ -120,8 +129,8 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
   };
 
   const uploadImage = async (idx: number, file: File) => {
-    // La posición puede cambiar mientras sube: la imagen va a esta pregunta
-    const target = questions[idx];
+    // La imagen va a esta pregunta aunque mientras sube se la mueva o se la edite
+    const { uid } = questions[idx];
     setUploadingIdx(idx);
     setError(null);
     const formData = new FormData();
@@ -129,7 +138,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
     try {
       const res = await fetch('/api/admin/upload-image', { method: 'POST', body: formData });
       const data = await res.json();
-      if (res.ok) setQuestions(qs => qs.map(q => (q === target ? { ...q, imageUrl: data.url } : q)));
+      if (res.ok) setQuestions(qs => qs.map(q => (q.uid === uid ? { ...q, imageUrl: data.url } : q)));
       else setError(data.error || 'No se pudo subir la imagen.');
     } catch {
       setError('No se pudo subir la imagen.');
@@ -163,7 +172,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         setError(data.error || 'No se pudo importar el archivo.');
         return;
       }
-      const imported: EditorQuestion[] = data.quiz.questions;
+      const imported: StatefulQuestion[] = (data.quiz.questions as EditorQuestion[]).map(withUid);
       const form = formRef.current;
       const append = !isEmptyForm(form.name, form.questions);
       // Las preguntas que quedaron vacías (la inicial, o alguna recién agregada)
@@ -194,7 +203,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
       const res = await fetch(quizId ? `/api/admin/quizzes/${quizId}` : '/api/admin/quizzes', {
         method: quizId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, questions }),
+        body: JSON.stringify({ name, questions: questions.map(({ uid, ...q }) => q) }),
       });
       const data = await res.json();
       if (res.ok) router.push('/admin');
@@ -351,7 +360,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         ))}
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button onClick={() => setQuestions(qs => [...qs, newQuestion()])} disabled={importing} style={smallBtn('#455a64', importing)}>
+          <button onClick={() => setQuestions(qs => [...qs, withUid(newQuestion())])} disabled={importing} style={smallBtn('#455a64', importing)}>
             + Agregar pregunta
           </button>
           <button onClick={save} disabled={saving || importing} style={smallBtn('#388e3c', saving || importing)}>
