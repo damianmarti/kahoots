@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
@@ -56,6 +56,11 @@ function newQuestion(type: EditorQuestion['type'] = 'single'): EditorQuestion {
 function isBlank(q: EditorQuestion): boolean {
   const defaults = optionsForType(q.type);
   return !q.text.trim() && !q.imageUrl && q.options.length === defaults.length && q.options.every((o, i) => !o.isCorrect && o.text === defaults[i].text);
+}
+
+// Formulario recién abierto: sin nombre y con la única pregunta sin tocar
+function isEmptyForm(name: string, questions: EditorQuestion[]): boolean {
+  return !name.trim() && questions.length === 1 && isBlank(questions[0]);
 }
 
 function optionsForType(type: EditorQuestion['type']): EditorOption[] {
@@ -133,17 +138,18 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
 
   // Un formulario recién abierto se llena con el import; si ya hay preguntas
   // cargadas (o se está editando un cuestionario), se agregan al final
-  const emptyForm = !name.trim() && questions.length === 1 && isBlank(questions[0]);
+  const emptyForm = isEmptyForm(name, questions);
+
+  // El import se resuelve después del round-trip y mientras tanto se puede
+  // seguir escribiendo: este ref tiene el formulario como está en ese momento,
+  // así no se decide ni se numera sobre una foto vieja
+  const formRef = useRef({ name, questions });
+  useEffect(() => {
+    formRef.current = { name, questions };
+  }, [name, questions]);
 
   // Carga las preguntas de un export de resultados de Kahoot (.xlsx)
   const importKahoot = async (file: File) => {
-    const append = !emptyForm;
-    // Las preguntas que quedaron vacías (la inicial, o alguna recién agregada)
-    // no sobreviven al append: bloquearían el guardado sin decir por qué
-    const kept = append ? questions.filter(q => !isBlank(q)) : [];
-    const dropped = questions.length - kept.length;
-    // Mientras dura el upload los controles de preguntas quedan deshabilitados,
-    // así esta foto de la lista sigue siendo válida cuando llega la respuesta
     setImporting(true);
     setError(null);
     setImportNotes(null);
@@ -157,11 +163,17 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         return;
       }
       const imported: EditorQuestion[] = data.quiz.questions;
+      const form = formRef.current;
+      const append = !isEmptyForm(form.name, form.questions);
+      // Las preguntas que quedaron vacías (la inicial, o alguna recién agregada)
+      // no sobreviven al append: bloquearían el guardado sin decir por qué
+      const kept = append ? form.questions.filter(q => !isBlank(q)) : [];
+      const dropped = append ? form.questions.length - kept.length : 0;
       if (!append) setName(data.quiz.name);
       setQuestions(append ? [...kept, ...imported] : imported);
       const warnings: string[] = (data.warnings || []).map((w: { question: number | null; message: string }) =>
         // Recién acá se puede numerar: el aviso trae el índice dentro del import
-        w.question === null ? w.message : `Pregunta ${(append ? kept.length : 0) + w.question + 1}: ${w.message}`,
+        w.question === null ? w.message : `Pregunta ${kept.length + w.question + 1}: ${w.message}`,
       );
       if (dropped > 0) {
         warnings.push(dropped === 1 ? 'Se quitó la pregunta vacía que había sin completar.' : `Se quitaron las ${dropped} preguntas vacías que había sin completar.`);
