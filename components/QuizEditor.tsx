@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
@@ -120,6 +120,8 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
   };
 
   const uploadImage = async (idx: number, file: File) => {
+    // La posición puede cambiar mientras sube: la imagen va a esta pregunta
+    const target = questions[idx];
     setUploadingIdx(idx);
     setError(null);
     const formData = new FormData();
@@ -127,7 +129,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
     try {
       const res = await fetch('/api/admin/upload-image', { method: 'POST', body: formData });
       const data = await res.json();
-      if (res.ok) updateQuestion(idx, { imageUrl: data.url });
+      if (res.ok) setQuestions(qs => qs.map(q => (q === target ? { ...q, imageUrl: data.url } : q)));
       else setError(data.error || 'No se pudo subir la imagen.');
     } catch {
       setError('No se pudo subir la imagen.');
@@ -142,11 +144,10 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
 
   // El import se resuelve después del round-trip y mientras tanto se puede
   // seguir escribiendo: este ref tiene el formulario como está en ese momento,
-  // así no se decide ni se numera sobre una foto vieja
+  // así no se decide ni se numera sobre una foto vieja. Se asigna en el render
+  // y no en un effect, que se agenda como macrotask y llegaría tarde.
   const formRef = useRef({ name, questions });
-  useEffect(() => {
-    formRef.current = { name, questions };
-  }, [name, questions]);
+  formRef.current = { name, questions };
 
   // Carga las preguntas de un export de resultados de Kahoot (.xlsx)
   const importKahoot = async (file: File) => {
@@ -223,7 +224,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
           <input
             type="file"
             accept=".xlsx"
-            disabled={importing}
+            disabled={importing || uploadingIdx !== null}
             onChange={e => {
               const file = e.target.files?.[0];
               e.target.value = '';
@@ -314,7 +315,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
                   </button>
                 </div>
               ) : (
-                <input type="file" accept="image/*" disabled={uploadingIdx === idx} onChange={e => e.target.files?.[0] && uploadImage(idx, e.target.files[0])} style={{ marginTop: 8 }} />
+                <input type="file" accept="image/*" disabled={importing || uploadingIdx === idx} onChange={e => e.target.files?.[0] && uploadImage(idx, e.target.files[0])} style={{ marginTop: 8 }} />
               )}
               {uploadingIdx === idx && <span style={{ marginLeft: 12, color: '#666' }}>Subiendo...</span>}
             </div>
