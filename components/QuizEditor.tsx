@@ -76,7 +76,7 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
   const [saving, setSaving] = useState(false);
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
-  const [importNotes, setImportNotes] = useState<{ count: number; warnings: string[]; skipped: string[] } | null>(null);
+  const [importNotes, setImportNotes] = useState<{ count: number; appended: boolean; warnings: string[]; skipped: string[] } | null>(null);
 
   const updateQuestion = (idx: number, patch: Partial<EditorQuestion>) => {
     setQuestions(qs => qs.map((q, i) => (i === idx ? { ...q, ...patch } : q)));
@@ -131,11 +131,14 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
     }
   };
 
-  // Precarga el editor con las preguntas de un export de resultados de Kahoot (.xlsx)
+  // Un formulario recién abierto se llena con el import; si ya hay preguntas
+  // cargadas (o se está editando un cuestionario), se agregan al final
+  const emptyForm = !name.trim() && questions.length === 1 && isBlank(questions[0]);
+
+  // Carga las preguntas de un export de resultados de Kahoot (.xlsx)
   const importKahoot = async (file: File) => {
-    // El import reemplaza todo: si ya hay algo cargado a mano, se pregunta antes
-    const pristine = !name.trim() && questions.length === 1 && isBlank(questions[0]);
-    if (!pristine && !window.confirm('Al importar se reemplazan el nombre y las preguntas que tengas cargadas. ¿Continuar?')) return;
+    const append = !emptyForm;
+    const offset = append ? questions.length : 0;
     setImporting(true);
     setError(null);
     setImportNotes(null);
@@ -148,9 +151,18 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         setError(data.error || 'No se pudo importar el archivo.');
         return;
       }
-      setName(data.quiz.name);
-      setQuestions(data.quiz.questions);
-      setImportNotes({ count: data.quiz.questions.length, warnings: data.warnings || [], skipped: data.skipped || [] });
+      const imported: EditorQuestion[] = data.quiz.questions;
+      if (!append) setName(data.quiz.name);
+      setQuestions(qs => (append ? [...qs, ...imported] : imported));
+      setImportNotes({
+        count: imported.length,
+        appended: append,
+        // Recién acá se puede numerar: el aviso trae el índice dentro del import
+        warnings: (data.warnings || []).map((w: { question: number | null; message: string }) =>
+          w.question === null ? w.message : `Pregunta ${offset + w.question + 1}: ${w.message}`,
+        ),
+        skipped: data.skipped || [],
+      });
     } catch {
       setError('No se pudo importar el archivo.');
     } finally {
@@ -185,42 +197,43 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         </Link>
         <h2 style={{ fontSize: 28, fontWeight: 700, color: '#1976d2', margin: '16px 0 24px' }}>{quizId ? 'Editar cuestionario' : 'Nuevo cuestionario'}</h2>
 
-        {!quizId && (
-          <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
-            <label style={{ fontWeight: 500 }}>Importar desde Kahoot:</label>
-            <div style={{ color: '#666', fontSize: 14, margin: '6px 0 10px' }}>
-              Subí el Excel de resultados que descargás de Kahoot y se cargan las preguntas con sus opciones. Después revisá y guardá.
-            </div>
-            <input
-              type="file"
-              accept=".xlsx"
-              disabled={importing}
-              onChange={e => {
-                const file = e.target.files?.[0];
-                e.target.value = '';
-                if (file) importKahoot(file);
-              }}
-            />
-            {importing && <span style={{ marginLeft: 12, color: '#666' }}>Importando...</span>}
-            {importNotes && (
-              <div style={{ marginTop: 14, background: '#f0f4f8', borderRadius: 8, padding: '12px 16px', fontSize: 14 }}>
-                <div style={{ fontWeight: 600, marginBottom: importNotes.warnings.length || importNotes.skipped.length ? 8 : 0 }}>
-                  Se importaron {importNotes.count} {importNotes.count === 1 ? 'pregunta' : 'preguntas'}.
-                </div>
-                {importNotes.skipped.map((s, i) => (
-                  <div key={`s${i}`} style={{ color: '#d32f2f' }}>
-                    • No se importó: {s}
-                  </div>
-                ))}
-                {importNotes.warnings.map((w, i) => (
-                  <div key={`w${i}`} style={{ color: '#e65100' }}>
-                    • {w}
-                  </div>
-                ))}
-              </div>
-            )}
+        <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
+          <label style={{ fontWeight: 500 }}>Importar desde Kahoot:</label>
+          <div style={{ color: '#666', fontSize: 14, margin: '6px 0 10px' }}>
+            {emptyForm
+              ? 'Subí el Excel de resultados que descargás de Kahoot y se cargan las preguntas con sus opciones. Después revisá y guardá.'
+              : 'Subí el Excel de resultados que descargás de Kahoot y sus preguntas se agregan al final, sin tocar las que ya tenés.'}
           </div>
-        )}
+          <input
+            type="file"
+            accept=".xlsx"
+            disabled={importing}
+            onChange={e => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) importKahoot(file);
+            }}
+          />
+          {importing && <span style={{ marginLeft: 12, color: '#666' }}>Importando...</span>}
+          {importNotes && (
+            <div style={{ marginTop: 14, background: '#f0f4f8', borderRadius: 8, padding: '12px 16px', fontSize: 14 }}>
+              <div style={{ fontWeight: 600, marginBottom: importNotes.warnings.length || importNotes.skipped.length ? 8 : 0 }}>
+                Se {importNotes.appended ? 'agregaron' : 'importaron'} {importNotes.count} {importNotes.count === 1 ? 'pregunta' : 'preguntas'}
+                {importNotes.appended ? ' al final' : ''}.
+              </div>
+              {importNotes.skipped.map((s, i) => (
+                <div key={`s${i}`} style={{ color: '#d32f2f' }}>
+                  • No se importó: {s}
+                </div>
+              ))}
+              {importNotes.warnings.map((w, i) => (
+                <div key={`w${i}`} style={{ color: '#e65100' }}>
+                  • {w}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 24, marginBottom: 24 }}>
           <label style={{ fontWeight: 500 }}>Nombre del cuestionario:</label>
