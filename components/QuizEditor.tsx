@@ -138,7 +138,12 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
   // Carga las preguntas de un export de resultados de Kahoot (.xlsx)
   const importKahoot = async (file: File) => {
     const append = !emptyForm;
-    const offset = append ? questions.length : 0;
+    // Las preguntas que quedaron vacías (la inicial, o alguna recién agregada)
+    // no sobreviven al append: bloquearían el guardado sin decir por qué
+    const kept = append ? questions.filter(q => !isBlank(q)) : [];
+    const dropped = questions.length - kept.length;
+    // Mientras dura el upload los controles de preguntas quedan deshabilitados,
+    // así esta foto de la lista sigue siendo válida cuando llega la respuesta
     setImporting(true);
     setError(null);
     setImportNotes(null);
@@ -153,16 +158,15 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
       }
       const imported: EditorQuestion[] = data.quiz.questions;
       if (!append) setName(data.quiz.name);
-      setQuestions(qs => (append ? [...qs, ...imported] : imported));
-      setImportNotes({
-        count: imported.length,
-        appended: append,
+      setQuestions(append ? [...kept, ...imported] : imported);
+      const warnings: string[] = (data.warnings || []).map((w: { question: number | null; message: string }) =>
         // Recién acá se puede numerar: el aviso trae el índice dentro del import
-        warnings: (data.warnings || []).map((w: { question: number | null; message: string }) =>
-          w.question === null ? w.message : `Pregunta ${offset + w.question + 1}: ${w.message}`,
-        ),
-        skipped: data.skipped || [],
-      });
+        w.question === null ? w.message : `Pregunta ${(append ? kept.length : 0) + w.question + 1}: ${w.message}`,
+      );
+      if (dropped > 0) {
+        warnings.push(dropped === 1 ? 'Se quitó la pregunta vacía que había sin completar.' : `Se quitaron las ${dropped} preguntas vacías que había sin completar.`);
+      }
+      setImportNotes({ count: imported.length, appended: append && kept.length > 0, warnings, skipped: data.skipped || [] });
     } catch {
       setError('No se pudo importar el archivo.');
     } finally {
@@ -245,13 +249,13 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ fontWeight: 600 }}>Pregunta {idx + 1}</h3>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => move(idx, -1)} disabled={idx === 0} style={smallBtn('#888', idx === 0)}>
+                <button onClick={() => move(idx, -1)} disabled={importing || idx === 0} style={smallBtn('#888', importing || idx === 0)}>
                   ↑
                 </button>
-                <button onClick={() => move(idx, 1)} disabled={idx === questions.length - 1} style={smallBtn('#888', idx === questions.length - 1)}>
+                <button onClick={() => move(idx, 1)} disabled={importing || idx === questions.length - 1} style={smallBtn('#888', importing || idx === questions.length - 1)}>
                   ↓
                 </button>
-                <button onClick={() => setQuestions(qs => qs.filter((_, i) => i !== idx))} disabled={questions.length === 1} style={smallBtn('#d32f2f', questions.length === 1)}>
+                <button onClick={() => setQuestions(qs => qs.filter((_, i) => i !== idx))} disabled={importing || questions.length === 1} style={smallBtn('#d32f2f', importing || questions.length === 1)}>
                   Eliminar
                 </button>
               </div>
@@ -334,10 +338,10 @@ const QuizEditor: React.FC<{ quizId?: number; initial?: EditorQuiz }> = ({ quizI
         ))}
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button onClick={() => setQuestions(qs => [...qs, newQuestion()])} style={smallBtn('#455a64')}>
+          <button onClick={() => setQuestions(qs => [...qs, newQuestion()])} disabled={importing} style={smallBtn('#455a64', importing)}>
             + Agregar pregunta
           </button>
-          <button onClick={save} disabled={saving} style={smallBtn('#388e3c', saving)}>
+          <button onClick={save} disabled={saving || importing} style={smallBtn('#388e3c', saving || importing)}>
             {saving ? 'Guardando...' : 'Guardar cuestionario'}
           </button>
         </div>
