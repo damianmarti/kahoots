@@ -30,7 +30,7 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
 
   const loadQuizzes = () => {
     fetch('/api/admin/quizzes')
@@ -60,22 +60,25 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = () => {
     else setError(data.error || 'No se pudo duplicar.');
   };
 
-  const deleteQuiz = async (quizId: number) => {
-    setDeleting(true);
+  const deleteQuiz = async (quizId: number, name: string) => {
+    setDeleting(quizId);
     setError(null);
     try {
       const res = await fetch(`/api/admin/quizzes/${quizId}`, { method: 'DELETE' });
       const data = await res.json();
       if (res.ok) {
         setQuizzes(prev => prev.filter(q => q.id !== quizId));
-        setConfirmDelete(null);
       } else {
-        setError(data.error || 'No se pudo borrar el cuestionario.');
+        setError(`${name}: ${data.error || 'No se pudo borrar el cuestionario.'}`);
+        // La lista puede haber quedado vieja (p. ej. lo jugaron desde otra pestaña).
+        loadQuizzes();
       }
     } catch {
-      setError('No se pudo borrar el cuestionario.');
+      setError(`${name}: no se pudo borrar el cuestionario.`);
     } finally {
-      setDeleting(false);
+      setDeleting(null);
+      // Solo cerramos la confirmación de este quiz: puede haber otra fila abierta.
+      setConfirmDelete(prev => (prev === quizId ? null : prev));
     }
   };
 
@@ -116,10 +119,10 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = () => {
                       {confirmDelete === q.id ? (
                         <>
                           <span style={{ marginRight: 12, color: '#d32f2f', fontWeight: 600 }}>¿Borrar este cuestionario?</span>
-                          <button onClick={() => deleteQuiz(q.id)} disabled={deleting} style={btnStyle('#d32f2f')}>
-                            {deleting ? 'Borrando...' : 'Sí, borrar'}
+                          <button onClick={() => deleteQuiz(q.id, q.name)} disabled={deleting === q.id} style={btnStyle('#d32f2f')}>
+                            {deleting === q.id ? 'Borrando...' : 'Sí, borrar'}
                           </button>
-                          <button onClick={() => setConfirmDelete(null)} disabled={deleting} style={{ ...btnStyle('#888'), marginRight: 0 }}>
+                          <button onClick={() => setConfirmDelete(null)} disabled={deleting === q.id} style={{ ...btnStyle('#888'), marginRight: 0 }}>
                             Cancelar
                           </button>
                         </>
