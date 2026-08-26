@@ -1,4 +1,5 @@
 import React from 'react';
+import MuteButton from './MuteButton';
 
 const ORBIT_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
 
@@ -25,6 +26,10 @@ const QuestionTransition: React.FC<{
       gap: 34,
     }}
   >
+    {/* La cortina tapa la pantalla entera, así que se trae su propio botón de
+        mute: sin esto no habría control de audio justo cuando suena la cuenta. */}
+    <MuteButton />
+
     <div className="anim-fade-in-scale" style={{ color: 'rgba(255,255,255,0.9)', fontSize: 28, fontWeight: 700, letterSpacing: 1 }}>
       Pregunta {questionNumber} de {totalQuestions}
     </div>

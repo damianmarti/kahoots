@@ -12,6 +12,7 @@ import { getHostAudio } from '../../lib/audio';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
 const TRANSITION_SECONDS = 3;
+const GO_HOLD_MS = 600; // mínimo que se ve el 🚀 final, aunque el advance vuelva enseguida
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 interface HostState {
@@ -118,6 +119,9 @@ const HostGame: React.FC = () => {
         const data = await res.json();
         setError(data.error || 'Error al avanzar.');
       }
+    } catch {
+      // Se cortó la red, o la respuesta no era JSON (ej: un 502 en HTML)
+      setError('No se pudo avanzar. Revisá la conexión e intentá de nuevo.');
     } finally {
       advancing.current = false;
     }
@@ -143,13 +147,19 @@ const HostGame: React.FC = () => {
       );
     }
     timers.push(
-      setTimeout(async () => {
+      setTimeout(() => {
         setTransitionCount(0);
         getHostAudio().playSfx('go');
-        // La cortina se mantiene hasta que el poll trae la pregunta, así no
-        // parpadea el podio parcial entre el advance y el nuevo estado.
-        await advance('leaderboard');
-        setTransitionCount(null);
+        // El advance corre en paralelo con un hold mínimo: si el server
+        // contesta al instante, el frame del 🚀 igual dura lo que dura su
+        // sonido. Y como la cortina no se cierra hasta que el poll trajo la
+        // pregunta, tampoco parpadea el podio parcial en el medio.
+        const hold = new Promise(resolve => {
+          transitionTimers.current.push(setTimeout(resolve, GO_HOLD_MS));
+        });
+        // advance() ya captura sus propios errores: el finally siempre corre y
+        // la cortina nunca queda trabada tapando la pantalla.
+        Promise.all([advance('leaderboard'), hold]).finally(() => setTransitionCount(null));
       }, TRANSITION_SECONDS * 1000),
     );
     transitionTimers.current = timers;
@@ -495,7 +505,10 @@ const HostGame: React.FC = () => {
             </div>
           ))}
         </div>
-        <button onClick={startQuestionTransition} disabled={transitionCount !== null} style={{ ...bigBtn, marginTop: 24, opacity: transitionCount !== null ? 0.5 : 1 }}>
+        {/* Sin disabled: durante la cortina este botón ni siquiera está montado
+            (el early return de arriba la muestra en su lugar). El doble click lo
+            frena el guard al inicio de startQuestionTransition. */}
+        <button onClick={startQuestionTransition} style={{ ...bigBtn, marginTop: 24 }}>
           Siguiente
         </button>
         {error && <ErrorBox text={error} />}
