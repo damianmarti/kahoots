@@ -7,7 +7,7 @@
 // bloqueo de autoplay de los browsers.
 
 type LoopName = 'lobby' | 'suspense' | 'podium';
-type SfxName = 'ready' | 'timeUp' | 'correct' | 'winner' | 'fanfare' | 'drumroll';
+type SfxName = 'ready' | 'timeUp' | 'correct' | 'winner' | 'fanfare' | 'drumroll' | 'tick' | 'go';
 
 // [pitch MIDI, inicio en corcheas, duración en corcheas]
 type Seq = [number, number, number][];
@@ -115,6 +115,11 @@ const SFX: Record<SfxName, SfxDef> = {
     vol: 0.09,
     type: 'square',
   },
+  // Blip corto de la cuenta regresiva previa a cada pregunta (se transpone
+  // hacia arriba en cada número para dar sensación de tensión creciente)
+  tick: { notes: [[72, 0, 0.13]], vol: 0.1, type: 'square' },
+  // Sting ascendente al terminar la cuenta regresiva: ¡va la pregunta!
+  go: { notes: [[76, 0, 0.1], [81, 0.1, 0.1], [88, 0.2, 0.36]], vol: 0.1, type: 'square' },
   // Redoble de tambor en "Y los ganadores son..."
   drumroll: {
     notes: Array.from({ length: 18 }, (_, i) => [40 + (i % 2) * 2, i * 0.06, 0.05] as [number, number, number]),
@@ -183,12 +188,14 @@ class HostAudio {
     if (name) this.startLoop(name);
   }
 
-  playSfx(name: SfxName) {
+  // transpose: semitonos a sumar a todas las notas (para reusar un mismo
+  // efecto con distinta altura, ej: los blips de la cuenta regresiva).
+  playSfx(name: SfxName, transpose = 0) {
     if (!this.ctx || !this.master) return;
     const def = SFX[name];
     const base = this.ctx.currentTime + 0.03;
     for (const [pitch, start, dur] of def.notes) {
-      this.scheduleNote(base + start, pitch, dur, def.vol, def.type, def.filter);
+      this.scheduleNote(base + start, pitch + transpose, dur, def.vol, def.type, def.filter);
     }
   }
 

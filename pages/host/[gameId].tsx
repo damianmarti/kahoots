@@ -4,11 +4,14 @@ import type { GetServerSidePropsContext } from 'next';
 import { requireAdminSSR } from '../../lib/auth';
 import Countdown from '../../components/Countdown';
 import MuteButton from '../../components/MuteButton';
+import QuestionTransition from '../../components/QuestionTransition';
 import RankDelta from '../../components/RankDelta';
 import { characterEmoji } from '../../lib/characters';
 import { useHostAudio } from '../../hooks/useHostAudio';
+import { getHostAudio } from '../../lib/audio';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
+const TRANSITION_SECONDS = 3;
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 interface HostState {
@@ -64,6 +67,10 @@ const HostGame: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [podiumStage, setPodiumStage] = useState(0); // 0: nada, 1: 3ro, 2: 2do, 3: 1ro
   const [copied, setCopied] = useState(false);
+  // Cuenta regresiva previa a la siguiente pregunta (null = no hay transición)
+  const [transitionCount, setTransitionCount] = useState<number | null>(null);
+  const [transitionTarget, setTransitionTarget] = useState(0); // nº (1-based) de la pregunta que viene
+  const transitionTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const advancing = useRef(false);
   const titleAdvanced = useRef(false);
   const pollNow = useRef<(() => Promise<void>) | null>(null);
@@ -116,6 +123,41 @@ const HostGame: React.FC = () => {
     }
   };
 
+  // "Siguiente" en el podio parcial: cortina de 3s (cuenta regresiva con
+  // sonido) y recién ahí se avanza. Como el server arranca el reloj de la
+  // pregunta en el advance, nadie pierde tiempo de respuesta por la animación.
+  const startQuestionTransition = () => {
+    if (transitionCount !== null || advancing.current) return;
+    const audio = getHostAudio();
+    audio.resume(); // el click es un gesto del usuario: habilita el audio si aún no arrancó
+    setTransitionTarget((state?.questionIndex ?? 0) + 2); // la recién jugada es index+1
+    setTransitionCount(TRANSITION_SECONDS);
+    audio.playSfx('tick');
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 1; i < TRANSITION_SECONDS; i++) {
+      timers.push(
+        setTimeout(() => {
+          setTransitionCount(TRANSITION_SECONDS - i);
+          getHostAudio().playSfx('tick', i * 2); // cada blip un tono más agudo
+        }, i * 1000),
+      );
+    }
+    timers.push(
+      setTimeout(async () => {
+        setTransitionCount(0);
+        getHostAudio().playSfx('go');
+        // La cortina se mantiene hasta que el poll trae la pregunta, así no
+        // parpadea el podio parcial entre el advance y el nuevo estado.
+        await advance('leaderboard');
+        setTransitionCount(null);
+      }, TRANSITION_SECONDS * 1000),
+    );
+    transitionTimers.current = timers;
+  };
+
+  // Corta la cuenta regresiva si el host se va de la pantalla a mitad de camino
+  useEffect(() => () => transitionTimers.current.forEach(clearTimeout), []);
+
   // Animación del título: auto-avanza a la primera pregunta a los 4s
   useEffect(() => {
     if (state?.status !== 'title') {
@@ -145,6 +187,12 @@ const HostGame: React.FC = () => {
         <div style={{ color: '#fff', fontSize: 24 }}>Cargando...</div>
       </Screen>
     );
+  }
+
+  // La cortina tapa la pantalla completa: se renderiza antes que cualquier fase
+  // para que el podio parcial no vuelva a asomarse mientras corre el advance.
+  if (transitionCount !== null) {
+    return <QuestionTransition count={transitionCount} questionNumber={transitionTarget} totalQuestions={state.totalQuestions} />;
   }
 
   if (state.status === 'lobby') {
@@ -447,7 +495,7 @@ const HostGame: React.FC = () => {
             </div>
           ))}
         </div>
-        <button onClick={() => advance('leaderboard')} style={{ ...bigBtn, marginTop: 24 }}>
+        <button onClick={startQuestionTransition} disabled={transitionCount !== null} style={{ ...bigBtn, marginTop: 24, opacity: transitionCount !== null ? 0.5 : 1 }}>
           Siguiente
         </button>
         {error && <ErrorBox text={error} />}
