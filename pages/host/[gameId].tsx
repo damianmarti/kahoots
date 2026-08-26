@@ -4,11 +4,15 @@ import type { GetServerSidePropsContext } from 'next';
 import { requireAdminSSR } from '../../lib/auth';
 import Countdown from '../../components/Countdown';
 import MuteButton from '../../components/MuteButton';
+import QuestionTransition from '../../components/QuestionTransition';
 import RankDelta from '../../components/RankDelta';
 import { characterEmoji } from '../../lib/characters';
 import { useHostAudio } from '../../hooks/useHostAudio';
+import { getHostAudio } from '../../lib/audio';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
+const TRANSITION_SECONDS = 3;
+const GO_HOLD_MS = 600; // mínimo que se ve el 🚀 final, aunque el advance vuelva enseguida
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 interface HostState {
@@ -64,6 +68,10 @@ const HostGame: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [podiumStage, setPodiumStage] = useState(0); // 0: nada, 1: 3ro, 2: 2do, 3: 1ro
   const [copied, setCopied] = useState(false);
+  // Cuenta regresiva previa a la siguiente pregunta (null = no hay transición)
+  const [transitionCount, setTransitionCount] = useState<number | null>(null);
+  const [transitionTarget, setTransitionTarget] = useState(0); // nº (1-based) de la pregunta que viene
+  const transitionTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const advancing = useRef(false);
   const titleAdvanced = useRef(false);
   const pollNow = useRef<(() => Promise<void>) | null>(null);
@@ -111,10 +119,54 @@ const HostGame: React.FC = () => {
         const data = await res.json();
         setError(data.error || 'Error al avanzar.');
       }
+    } catch {
+      // Se cortó la red, o la respuesta no era JSON (ej: un 502 en HTML)
+      setError('No se pudo avanzar. Revisá la conexión e intentá de nuevo.');
     } finally {
       advancing.current = false;
     }
   };
+
+  // "Siguiente" en el podio parcial: cortina de 3s (cuenta regresiva con
+  // sonido) y recién ahí se avanza. Como el server arranca el reloj de la
+  // pregunta en el advance, nadie pierde tiempo de respuesta por la animación.
+  const startQuestionTransition = () => {
+    if (transitionCount !== null || advancing.current) return;
+    const audio = getHostAudio();
+    audio.resume(); // el click es un gesto del usuario: habilita el audio si aún no arrancó
+    setTransitionTarget((state?.questionIndex ?? 0) + 2); // la recién jugada es index+1
+    setTransitionCount(TRANSITION_SECONDS);
+    audio.playSfx('tick');
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 1; i < TRANSITION_SECONDS; i++) {
+      timers.push(
+        setTimeout(() => {
+          setTransitionCount(TRANSITION_SECONDS - i);
+          getHostAudio().playSfx('tick', i * 2); // cada blip un tono más agudo
+        }, i * 1000),
+      );
+    }
+    timers.push(
+      setTimeout(() => {
+        setTransitionCount(0);
+        getHostAudio().playSfx('go');
+        // El advance corre en paralelo con un hold mínimo: si el server
+        // contesta al instante, el frame del 🚀 igual dura lo que dura su
+        // sonido. Y como la cortina no se cierra hasta que el poll trajo la
+        // pregunta, tampoco parpadea el podio parcial en el medio.
+        const hold = new Promise(resolve => {
+          transitionTimers.current.push(setTimeout(resolve, GO_HOLD_MS));
+        });
+        // advance() ya captura sus propios errores: el finally siempre corre y
+        // la cortina nunca queda trabada tapando la pantalla.
+        Promise.all([advance('leaderboard'), hold]).finally(() => setTransitionCount(null));
+      }, TRANSITION_SECONDS * 1000),
+    );
+    transitionTimers.current = timers;
+  };
+
+  // Corta la cuenta regresiva si el host se va de la pantalla a mitad de camino
+  useEffect(() => () => transitionTimers.current.forEach(clearTimeout), []);
 
   // Animación del título: auto-avanza a la primera pregunta a los 4s
   useEffect(() => {
@@ -145,6 +197,12 @@ const HostGame: React.FC = () => {
         <div style={{ color: '#fff', fontSize: 24 }}>Cargando...</div>
       </Screen>
     );
+  }
+
+  // La cortina tapa la pantalla completa: se renderiza antes que cualquier fase
+  // para que el podio parcial no vuelva a asomarse mientras corre el advance.
+  if (transitionCount !== null) {
+    return <QuestionTransition count={transitionCount} questionNumber={transitionTarget} totalQuestions={state.totalQuestions} />;
   }
 
   if (state.status === 'lobby') {
@@ -447,7 +505,10 @@ const HostGame: React.FC = () => {
             </div>
           ))}
         </div>
-        <button onClick={() => advance('leaderboard')} style={{ ...bigBtn, marginTop: 24 }}>
+        {/* Sin disabled: durante la cortina este botón ni siquiera está montado
+            (el early return de arriba la muestra en su lugar). El doble click lo
+            frena el guard al inicio de startQuestionTransition. */}
+        <button onClick={startQuestionTransition} style={{ ...bigBtn, marginTop: 24 }}>
           Siguiente
         </button>
         {error && <ErrorBox text={error} />}

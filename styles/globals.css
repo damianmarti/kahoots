@@ -40,6 +40,22 @@ body {
   50% { box-shadow: 0 0 80px rgba(255, 213, 79, 0.95); }
 }
 
+@keyframes countPop {
+  0% { opacity: 0; transform: scale(2.4) rotate(-10deg); }
+  55% { opacity: 1; transform: scale(0.9) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes ringOut {
+  0% { transform: scale(0.65); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @keyframes drumShake {
   0%, 100% { transform: rotate(0deg) scale(1); }
   20% { transform: rotate(-12deg) scale(1.08); }
@@ -55,6 +71,9 @@ body {
 .anim-podium-rise { animation: podiumRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .anim-glow { animation: glowPulse 1.6s ease-in-out infinite; }
 .anim-drum { animation: drumShake 0.7s ease-in-out infinite; }
+.anim-count-pop { animation: countPop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-ring-out { animation: ringOut 1s ease-out infinite; }
+.anim-orbit { animation: orbit 3s linear infinite; }
 
 /* Accesibilidad: respetar la preferencia de movimiento reducido.
    Neutraliza animaciones (incluidas las infinitas: pulse/glow/drum y el
