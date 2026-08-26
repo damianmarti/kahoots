@@ -76,8 +76,8 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = () => {
     } catch {
       setError(`${name}: no se pudo borrar el cuestionario.`);
     } finally {
-      setDeleting(null);
-      // Solo cerramos la confirmación de este quiz: puede haber otra fila abierta.
+      // Solo limpiamos el estado de este quiz: puede haber otro borrado en vuelo.
+      setDeleting(prev => (prev === quizId ? null : prev));
       setConfirmDelete(prev => (prev === quizId ? null : prev));
     }
   };
