@@ -29,6 +29,8 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = () => {
   const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
 
   const loadQuizzes = () => {
     fetch('/api/admin/quizzes')
@@ -56,6 +58,28 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = () => {
     const data = await res.json();
     if (res.ok) router.push(`/admin/quizzes/${data.id}`);
     else setError(data.error || 'No se pudo duplicar.');
+  };
+
+  const deleteQuiz = async (quizId: number, name: string) => {
+    setDeleting(quizId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/quizzes/${quizId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        setQuizzes(prev => prev.filter(q => q.id !== quizId));
+      } else {
+        setError(`${name}: ${data.error || 'No se pudo borrar el cuestionario.'}`);
+        // La lista puede haber quedado vieja (p. ej. lo jugaron desde otra pestaña).
+        loadQuizzes();
+      }
+    } catch {
+      setError(`${name}: no se pudo borrar el cuestionario.`);
+    } finally {
+      // Solo limpiamos el estado de este quiz: puede haber otro borrado en vuelo.
+      setDeleting(prev => (prev === quizId ? null : prev));
+      setConfirmDelete(prev => (prev === quizId ? null : prev));
+    }
   };
 
   return (
@@ -92,21 +116,40 @@ const AdminDashboard: React.FC<{ admin: AdminSession }> = () => {
                     <td style={{ padding: '12px 16px' }}>{q.question_count}</td>
                     <td style={{ padding: '12px 16px' }}>{q.created_by_username}</td>
                     <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button onClick={() => startGame(q.id)} style={btnStyle('#388e3c')}>
-                        Jugar
-                      </button>
-                      {q.has_games ? (
-                        <button onClick={() => duplicateQuiz(q.id)} title="Ya fue jugado: se duplica para editar" style={btnStyle('#f57c00')}>
-                          Duplicar para editar
-                        </button>
+                      {confirmDelete === q.id ? (
+                        <>
+                          <span style={{ marginRight: 12, color: '#d32f2f', fontWeight: 600 }}>¿Borrar este cuestionario?</span>
+                          <button onClick={() => deleteQuiz(q.id, q.name)} disabled={deleting === q.id} style={btnStyle('#d32f2f')}>
+                            {deleting === q.id ? 'Borrando...' : 'Sí, borrar'}
+                          </button>
+                          <button onClick={() => setConfirmDelete(null)} disabled={deleting === q.id} style={{ ...btnStyle('#888'), marginRight: 0 }}>
+                            Cancelar
+                          </button>
+                        </>
                       ) : (
-                        <button onClick={() => router.push(`/admin/quizzes/${q.id}`)} style={btnStyle('#1976d2')}>
-                          Editar
-                        </button>
+                        <>
+                          <button onClick={() => startGame(q.id)} style={btnStyle('#388e3c')}>
+                            Jugar
+                          </button>
+                          {q.has_games ? (
+                            <button onClick={() => duplicateQuiz(q.id)} title="Ya fue jugado: se duplica para editar" style={btnStyle('#f57c00')}>
+                              Duplicar para editar
+                            </button>
+                          ) : (
+                            <button onClick={() => router.push(`/admin/quizzes/${q.id}`)} style={btnStyle('#1976d2')}>
+                              Editar
+                            </button>
+                          )}
+                          <button onClick={() => duplicateQuiz(q.id)} style={q.has_games ? { ...btnStyle('#888'), marginRight: 0 } : btnStyle('#888')}>
+                            Duplicar
+                          </button>
+                          {!q.has_games && (
+                            <button onClick={() => { setError(null); setConfirmDelete(q.id); }} title="Nunca se jugó: se puede borrar" style={{ ...btnStyle('#d32f2f'), marginRight: 0 }}>
+                              Borrar
+                            </button>
+                          )}
+                        </>
                       )}
-                      <button onClick={() => duplicateQuiz(q.id)} style={{ ...btnStyle('#888'), marginRight: 0 }}>
-                        Duplicar
-                      </button>
                     </td>
                   </tr>
                 ))}

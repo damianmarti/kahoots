@@ -17,14 +17,11 @@ export default withAdmin(async (req, res, admin) => {
     }
   }
 
-  if (req.method === 'PUT' || req.method === 'DELETE') {
+  if (req.method === 'PUT') {
     const { rows: games } = await pool.query('SELECT 1 FROM games WHERE quiz_id = $1 LIMIT 1', [quizId]);
     if (games.length > 0) {
       return res.status(409).json({ error: 'Este cuestionario ya fue jugado: duplicalo para editarlo.' });
     }
-  }
-
-  if (req.method === 'PUT') {
     const error = validateQuiz(req.body);
     if (error) return res.status(400).json({ error });
     const client = await pool.connect();
@@ -50,8 +47,20 @@ export default withAdmin(async (req, res, admin) => {
   }
 
   if (req.method === 'DELETE') {
-    const { rows } = await pool.query('DELETE FROM quizzes WHERE id = $1 RETURNING name', [quizId]);
-    if (!rows[0]) return res.status(404).json({ error: 'Cuestionario no encontrado.' });
+    // El chequeo de partidas va dentro del propio DELETE: si un juego se crea entre
+    // el chequeo y el borrado, la fila no se toca y respondemos 409 en vez de chocar
+    // contra games_quiz_id_fkey y devolver un 500 genérico.
+    const { rows } = await pool.query(
+      'DELETE FROM quizzes WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM games WHERE quiz_id = $1) RETURNING name',
+      [quizId],
+    );
+    if (!rows[0]) {
+      const { rows: existing } = await pool.query('SELECT 1 FROM quizzes WHERE id = $1', [quizId]);
+      if (existing.length > 0) {
+        return res.status(409).json({ error: 'Este cuestionario ya fue jugado: no se puede borrar.' });
+      }
+      return res.status(404).json({ error: 'Cuestionario no encontrado.' });
+    }
     await audit(admin.id, 'quiz_delete', 'quiz', quizId, { name: rows[0].name });
     return res.status(200).json({ success: true });
   }
