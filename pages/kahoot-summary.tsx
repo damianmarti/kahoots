@@ -53,7 +53,7 @@ const KahootSummaryPage: React.FC = () => {
     : studentsSummary;
 
   const sortedStudents = [...filteredStudents].sort(
-    (a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0) || a.padron.localeCompare(b.padron)
+    (a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0) || a.padron.localeCompare(b.padron, undefined, { numeric: true })
   );
 
   const totalStudents = filteredStudents.length;

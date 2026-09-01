@@ -19,6 +19,15 @@ Aplicar el esquema del juego en vivo (una sola vez por base):
 psql "$DATABASE_URL" -f data/migration-live-quiz.sql
 ```
 
+Migraciones incrementales, para bases creadas antes de cada cambio (son idempotentes, correrlas de más no rompe nada):
+
+```bash
+psql "$DATABASE_URL" -f data/migration-add-avatar.sql
+psql "$DATABASE_URL" -f data/migration-add-score.sql
+```
+
+**Orden al desplegar: migrar primero, después desplegar.** Sin la columna `score` en `kahoot_results`, el INSERT del podio falla y el ROLLBACK deja la partida trabada en `reveal` (se pierden sus resultados), y `/kahoot-summary` responde 500. Si igual se desplegó primero el código, las partidas jugadas mientras tanto quedan con `score = 0`: volver a correr `migration-add-score.sql` las completa, porque el backfill solo toca las filas en 0.
+
 Crear el primer usuario admin:
 
 ```bash
