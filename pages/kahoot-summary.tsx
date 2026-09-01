@@ -17,6 +17,7 @@ interface StudentSummary {
   approved: boolean;
   first_name?: string;
   last_name?: string;
+  totalScore: number;
 }
 
 const KahootSummaryPage: React.FC = () => {
@@ -50,6 +51,10 @@ const KahootSummaryPage: React.FC = () => {
   const filteredStudents = showMoreThanHalf
     ? studentsSummary.filter(s => (s.kahootsApproved + s.kahootsFailed) > totalKahoots / 2)
     : studentsSummary;
+
+  const sortedStudents = [...filteredStudents].sort(
+    (a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0) || a.padron.localeCompare(b.padron)
+  );
 
   const totalStudents = filteredStudents.length;
   const totalApproved = filteredStudents.filter(s => s.approved).length;
@@ -179,6 +184,7 @@ const KahootSummaryPage: React.FC = () => {
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>Padrón</th>
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>Apellido</th>
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>Nombre</th>
+                    <th style={{ border: '1px solid #ccc', padding: 10 }}>Puntaje total</th>
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>Kahoots aprobados</th>
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>Kahoots fallidos</th>
                     <th style={{ border: '1px solid #ccc', padding: 10 }}>Kahoots no jugados</th>
@@ -187,7 +193,7 @@ const KahootSummaryPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStudents.map((s, i) => {
+                  {sortedStudents.map((s, i) => {
                     const totalKahoots = allKahootNames.length;
                     const kahootsPlayed = s.kahootsApproved + s.kahootsFailed;
                     const kahootsNotPlayed = totalKahoots - kahootsPlayed;
@@ -215,6 +221,7 @@ const KahootSummaryPage: React.FC = () => {
                         </td>
                         <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.last_name || ''}</td>
                         <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.first_name || ''}</td>
+                        <td style={{ border: '1px solid #ccc', padding: 10, fontWeight: 600 }}>{s.totalScore ?? 0}</td>
                         <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.kahootsApproved}</td>
                         <td style={{ border: '1px solid #ccc', padding: 10 }}>{s.kahootsFailed}</td>
                         <td style={{ border: '1px solid #ccc', padding: 10 }}>{kahootsNotPlayed}</td>
