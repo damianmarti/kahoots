@@ -16,9 +16,7 @@ export function randomToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
-export function cuatrimestreNow(date = new Date()): string {
-  return `${date.getFullYear()}-${date.getMonth() + 1 <= 7 ? 1 : 2}`;
-}
+export { cuatrimestreNow } from './cuatrimestre';
 
 // fraction es la proporción de acierto (0..1): 1 = respuesta totalmente
 // correcta, valores intermedios = crédito parcial (multiple choice con varias

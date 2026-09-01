@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { cuatrimestreNow } from '../lib/cuatrimestre';
+
+// El cuatrimestre en curso se preselecciona; si todavía no está en la lista
+// (arranca uno nuevo antes de que alguien la actualice) se agrega al vuelo.
+const CUATRIMESTRES = ['2025-1', '2025-2', '2026-1', '2026-2'];
+const CUATRIMESTRE_ACTUAL = cuatrimestreNow();
+const OPCIONES = CUATRIMESTRES.includes(CUATRIMESTRE_ACTUAL)
+  ? CUATRIMESTRES
+  : [...CUATRIMESTRES, CUATRIMESTRE_ACTUAL].sort();
 
 interface KahootSummary {
   kahootName: string;
@@ -21,7 +30,7 @@ interface StudentSummary {
 }
 
 const KahootSummaryPage: React.FC = () => {
-  const [cuatrimestre, setCuatrimestre] = useState('2025-1');
+  const [cuatrimestre, setCuatrimestre] = useState(CUATRIMESTRE_ACTUAL);
   const [summaries, setSummaries] = useState<KahootSummary[]>([]);
   const [studentsSummary, setStudentsSummary] = useState<StudentSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,10 +89,9 @@ const KahootSummaryPage: React.FC = () => {
         <div style={{ marginBottom: 18, width: '100%' }}>
           <label style={{ fontWeight: 500 }}>Cuatrimestre:</label><br />
           <select value={cuatrimestre} onChange={e => setCuatrimestre(e.target.value)} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}>
-            <option value="2025-1">2025-1</option>
-            <option value="2025-2">2025-2</option>
-            <option value="2026-1">2026-1</option>
-            <option value="2026-2">2026-2</option>
+            {OPCIONES.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
           </select>
         </div>
         {loading && <div style={{ marginTop: 20 }}>Cargando resumen...</div>}
