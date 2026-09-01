@@ -43,6 +43,13 @@ interface AdminInfo {
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [admin, setAdmin] = useState<AdminInfo | null>(null);
+  // Menú plegable: solo se ve en móviles (ver .site-nav__toggle en globals.css)
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Al navegar se cierra, para no tapar la página recién abierta
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [router.asPath]);
 
   // Se consulta la sesión al montar y en cada navegación, para que el menú se
   // actualice tras iniciar o cerrar sesión.
@@ -83,35 +90,45 @@ function MyApp({ Component, pageProps }: AppProps) {
   return (
     <>
       <SiteHead />
-      <nav style={{
-        width: '100%',
-        boxSizing: 'border-box',
-        background: '#fff',
-        padding: '14px 24px',
-        marginBottom: 32,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        borderBottom: '1.5px solid #e0e0e0',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-      }}>
+      <nav className={`site-nav${menuOpen ? ' is-open' : ''}`}>
         <Link href="/" legacyBehavior>
-          <a style={{ display: 'flex', alignItems: 'center', marginRight: 16 }}>
-            <img src="/logo-fiuba.png" alt="FIUBA Logo" style={{ maxHeight: 40, width: 'auto', verticalAlign: 'middle' }} />
+          <a className="site-nav__logo">
+            <img src="/logo-fiuba.png" alt="FIUBA Logo" />
           </a>
         </Link>
 
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', flex: 1 }}>
+        <button
+          type="button"
+          className="site-nav__toggle"
+          onClick={() => setMenuOpen(open => !open)}
+          aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={menuOpen}
+          aria-controls="site-nav-links"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            {menuOpen ? (
+              <>
+                <line x1="6" y1="6" x2="18" y2="18" />
+                <line x1="18" y1="6" x2="6" y2="18" />
+              </>
+            ) : (
+              <>
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </>
+            )}
+          </svg>
+        </button>
+
+        <div className="site-nav__links" id="site-nav-links">
           <NavLink href="/results">Kahoots</NavLink>
           <NavLink href="/kahoot-summary">Resumen</NavLink>
           <NavLink href="/student-summary">Estudiantes</NavLink>
 
           {admin && (
             <>
-              <span style={{ width: 1, height: 22, background: '#e0e0e0', margin: '0 12px' }} />
+              <span className="nav-sep" />
               <NavLink href="/upload">Upload</NavLink>
               <NavLink href="/admin">Cuestionarios</NavLink>
               <NavLink href="/admin/games">Juegos</NavLink>
@@ -121,28 +138,16 @@ function MyApp({ Component, pageProps }: AppProps) {
           )}
         </div>
 
-        {admin ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ color: '#666', fontSize: 15 }}>{admin.username}</span>
-            <button
-              onClick={logout}
-              style={{
-                background: '#888',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 6,
-                padding: '7px 14px',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Salir
-            </button>
-          </div>
-        ) : (
-          <NavLink href="/admin/login">Admin</NavLink>
-        )}
+        <div className="site-nav__session">
+          {admin ? (
+            <>
+              <span className="site-nav__user">{admin.username}</span>
+              <button onClick={logout} className="site-nav__logout">Salir</button>
+            </>
+          ) : (
+            <NavLink href="/admin/login">Admin</NavLink>
+          )}
+        </div>
       </nav>
       <Component {...pageProps} />
     </>
@@ -151,27 +156,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 
 const NavLink: React.FC<{ href: string; children: React.ReactNode }> = ({ href, children }) => (
   <Link href={href} legacyBehavior>
-    <a
-      style={{
-        color: '#222',
-        margin: '0 14px',
-        textDecoration: 'none',
-        fontWeight: 500,
-        fontSize: 17,
-        transition: 'color 0.2s',
-        position: 'relative',
-      }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLAnchorElement).style.color = '#1976d2';
-        (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'underline';
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLAnchorElement).style.color = '#222';
-        (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'none';
-      }}
-    >
-      {children}
-    </a>
+    <a className="nav-link">{children}</a>
   </Link>
 );
 

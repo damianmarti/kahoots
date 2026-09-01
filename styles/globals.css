@@ -88,3 +88,168 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Barra de navegación. En escritorio es una fila: logo + links + sesión.
+   En móviles los links y la sesión se pliegan detrás del botón hamburguesa
+   (los estilos inline de React no soportan media queries, por eso viven acá).
+   -------------------------------------------------------------------------- */
+.site-nav {
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  padding: 14px 24px;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1.5px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.site-nav__logo {
+  display: flex;
+  align-items: center;
+  margin-right: 16px;
+}
+
+.site-nav__logo img {
+  max-height: 40px;
+  width: auto;
+  vertical-align: middle;
+}
+
+.site-nav__links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.site-nav__session {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.site-nav__user {
+  color: #666;
+  font-size: 15px;
+}
+
+.site-nav__logout {
+  background: #888;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.site-nav__logout:hover {
+  background: #6f6f6f;
+}
+
+.nav-link {
+  color: #222;
+  margin: 0 14px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 17px;
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: #1976d2;
+  text-decoration: underline;
+}
+
+.nav-sep {
+  width: 1px;
+  height: 22px;
+  background: #e0e0e0;
+  margin: 0 12px;
+}
+
+/* Oculto en escritorio: solo aparece en el breakpoint móvil */
+.site-nav__toggle {
+  display: none;
+  margin-left: auto;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  color: #222;
+  cursor: pointer;
+}
+
+.site-nav__toggle:hover {
+  background: #f5f5f5;
+}
+
+@media (max-width: 760px) {
+  .site-nav {
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    margin-bottom: 20px;
+  }
+
+  .site-nav__toggle {
+    display: flex;
+  }
+
+  /* Plegados por defecto; el estado abierto lo pone React con .is-open */
+  .site-nav__links,
+  .site-nav__session {
+    display: none;
+  }
+
+  .site-nav.is-open .site-nav__links,
+  .site-nav.is-open .site-nav__session {
+    display: flex;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .site-nav.is-open .site-nav__links {
+    margin-top: 10px;
+    border-top: 1px solid #eee;
+  }
+
+  /* Links a lo ancho, con área de toque cómoda */
+  .site-nav.is-open .nav-link {
+    margin: 0;
+    padding: 13px 4px;
+    border-bottom: 1px solid #f2f2f2;
+  }
+
+  .site-nav.is-open .nav-sep {
+    display: none;
+  }
+
+  .site-nav.is-open .site-nav__session {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 4px 4px;
+  }
+
+  .site-nav.is-open .site-nav__session .nav-link {
+    border-bottom: none;
+    padding: 0;
+  }
+
+  .site-nav.is-open .site-nav__logout {
+    padding: 10px 18px;
+    font-size: 15px;
+  }
+}
