@@ -4,7 +4,8 @@ CREATE TABLE kahoot_results (
   cuatrimestre VARCHAR(20) NOT NULL,
   padron VARCHAR(20) NOT NULL,
   correct_answers INT NOT NULL,
-  incorrect_answers INT NOT NULL
+  incorrect_answers INT NOT NULL,
+  score INT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE students (

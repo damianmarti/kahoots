@@ -22,6 +22,7 @@ interface StudentSummary {
   kahootsNotPlayed: number;
   percentApproved: number;
   approved: boolean;
+  totalScore: number;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -39,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const totalKahoots = allKahootNames.length;
 
     const result = await pool.query(
-      `SELECT k.kahoot_name, k.padron, s.first_name, s.last_name, k.correct_answers, k.incorrect_answers
+      `SELECT k.kahoot_name, k.padron, s.first_name, s.last_name, k.correct_answers, k.incorrect_answers, k.score
        FROM kahoot_results k
        LEFT JOIN students s ON k.padron = s.padron
        WHERE k.cuatrimestre = $1`,
@@ -71,17 +72,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
     });
     // Student summary
-    const studentMap: Record<string, { first_name?: string; last_name?: string; approved: number; failed: number; played: Set<string> }> = {};
+    const studentMap: Record<string, { first_name?: string; last_name?: string; approved: number; failed: number; played: Set<string>; score: number }> = {};
     for (const row of result.rows) {
       const padron = row.padron;
       const correct = row.correct_answers;
       const incorrect = row.incorrect_answers;
       const total = correct + incorrect;
       const isApproved = total > 0 && (correct / total) >= 0.6;
-      if (!studentMap[padron]) studentMap[padron] = { first_name: row.first_name, last_name: row.last_name, approved: 0, failed: 0, played: new Set() };
+      if (!studentMap[padron]) studentMap[padron] = { first_name: row.first_name, last_name: row.last_name, approved: 0, failed: 0, played: new Set(), score: 0 };
       if (isApproved) studentMap[padron].approved++;
       else studentMap[padron].failed++;
       studentMap[padron].played.add(row.kahoot_name);
+      studentMap[padron].score += row.score;
     }
     const studentsSummary: StudentSummary[] = Object.entries(studentMap).map(([padron, stats]) => {
       const kahootsPlayed = stats.played.size;
@@ -96,6 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         kahootsNotPlayed,
         percentApproved,
         approved: percentApproved >= 60,
+        totalScore: stats.score,
       };
     });
     res.status(200).json({ summaries, studentsSummary });

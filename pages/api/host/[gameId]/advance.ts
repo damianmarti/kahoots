@@ -69,16 +69,17 @@ export default withAdmin(async (req, res) => {
         const { rows } = await client.query(`UPDATE games SET status = 'podium', finished_at = now() WHERE id = $1 AND status = 'reveal' RETURNING quiz_id`, [gameId]);
         if (rows[0]) {
           await client.query(
-            `INSERT INTO kahoot_results (kahoot_name, cuatrimestre, padron, correct_answers, incorrect_answers)
+            `INSERT INTO kahoot_results (kahoot_name, cuatrimestre, padron, correct_answers, incorrect_answers, score)
              SELECT qz.name || ' (' || g.code || ')', $2, p.padron,
                     COUNT(a.id) FILTER (WHERE a.is_correct)::int,
-                    ((SELECT COUNT(*) FROM questions WHERE quiz_id = qz.id) - COUNT(a.id) FILTER (WHERE a.is_correct))::int
+                    ((SELECT COUNT(*) FROM questions WHERE quiz_id = qz.id) - COUNT(a.id) FILTER (WHERE a.is_correct))::int,
+                    p.score
              FROM game_players p
              JOIN games g ON g.id = p.game_id
              JOIN quizzes qz ON qz.id = g.quiz_id
              LEFT JOIN game_answers a ON a.player_id = p.id
              WHERE p.game_id = $1
-             GROUP BY qz.id, qz.name, g.code, p.padron`,
+             GROUP BY qz.id, qz.name, g.code, p.padron, p.score`,
             [gameId, cuatrimestreNow()],
           );
         }
