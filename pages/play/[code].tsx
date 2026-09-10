@@ -8,11 +8,11 @@ const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
 
 // El servidor cierra la pregunta cuando respondieron todos los jugadores que
 // pollearon en los últimos 10s (ACTIVE_WINDOW_MS). Un celular pausado se pierde
-// la pregunta y sale de ese conteo, así que mientras la partida sigue viva no se
-// pausa: la inactividad es solo una red de seguridad para partidas abandonadas,
-// y con la pestaña oculta sigue polleando un rato (cambiar de app un momento no
-// lo saca del conteo).
-const IDLE_MS = 3 * 60 * 60 * 1000;
+// la pregunta y sale de ese conteo, así que la pausa por inactividad es una red
+// de seguridad para partidas abandonadas, más larga que un lobby o una
+// explicación normal. Con la pestaña oculta sigue polleando un rato (cambiar de
+// app un momento no lo saca del conteo).
+const IDLE_MS = 30 * 60 * 1000;
 const HIDDEN_GRACE_MS = 5 * 60 * 1000;
 
 interface PlayState {
