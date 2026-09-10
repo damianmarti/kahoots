@@ -8,6 +8,7 @@ import QuestionTransition from '../../components/QuestionTransition';
 import RankDelta from '../../components/RankDelta';
 import { characterEmoji } from '../../lib/characters';
 import { useHostAudio } from '../../hooks/useHostAudio';
+import { usePolling } from '../../hooks/usePolling';
 import { getHostAudio } from '../../lib/audio';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
@@ -74,33 +75,35 @@ const HostGame: React.FC = () => {
   const transitionTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const advancing = useRef(false);
   const titleAdvanced = useRef(false);
-  const pollNow = useRef<(() => Promise<void>) | null>(null);
 
   // Música por fase y efectos de sonido (el motor persiste entre fases)
   useHostAudio(state?.status, podiumStage);
 
-  // Polling cada 1s
-  useEffect(() => {
-    if (!gameId) return;
-    let active = true;
-    const tick = async () => {
+  // Polling cada 1s. Se corta en el podio final y se pausa con la pestaña
+  // oculta o inactiva, para no mantener despierta la base.
+  const polling = usePolling(
+    async () => {
       try {
         const res = await fetch(`/api/host/${gameId}/poll`);
-        if (!active) return;
-        if (res.ok) setState(await res.json());
-        else if (res.status === 401) router.push('/admin/login');
+        if (res.ok) {
+          const data: HostState = await res.json();
+          setState(data);
+          return {
+            done: data.status === 'podium',
+            fingerprint: `${data.status}|${data.questionIndex}|${data.players?.length ?? ''}|${data.answeredCount ?? ''}`,
+          };
+        }
+        if (res.status === 401) {
+          router.push('/admin/login');
+          return { done: true };
+        }
+        if (res.status === 404) return { done: true };
       } catch {
         /* reintenta en el próximo tick */
       }
-    };
-    pollNow.current = tick;
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [gameId, router]);
+    },
+    { enabled: !!gameId, intervalMs: 1000 },
+  );
 
   const advance = async (from: string) => {
     if (advancing.current) return;
@@ -114,7 +117,7 @@ const HostGame: React.FC = () => {
       if (res.ok) {
         // Refresca el estado completo: el nuevo status necesita su payload
         // (pregunta, opciones, leaderboard) que solo lo trae el poll
-        await pollNow.current?.();
+        await polling.pollNow();
       } else {
         const data = await res.json();
         setError(data.error || 'Error al avanzar.');
@@ -195,6 +198,21 @@ const HostGame: React.FC = () => {
     return (
       <Screen>
         <div style={{ color: '#fff', fontSize: 24 }}>Cargando...</div>
+      </Screen>
+    );
+  }
+
+  if (polling.idle) {
+    return (
+      <Screen>
+        <div className="anim-fade-in-scale" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 80 }}>⏸</div>
+          <h1 style={{ color: '#fff', fontSize: 42, margin: '12px 0 10px' }}>Pausado por inactividad</h1>
+          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 22, marginBottom: 32 }}>El juego sigue abierto, pero la pantalla dejó de actualizarse.</div>
+          <button onClick={polling.resume} style={bigBtn}>
+            Reanudar
+          </button>
+        </div>
       </Screen>
     );
   }

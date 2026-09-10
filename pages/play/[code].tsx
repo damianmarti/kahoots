@@ -2,8 +2,18 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import RankDelta from '../../components/RankDelta';
 import { CHARACTERS, DEFAULT_CHARACTER, characterEmoji } from '../../lib/characters';
+import { usePolling } from '../../hooks/usePolling';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
+
+// El servidor cierra la pregunta cuando respondieron todos los jugadores que
+// pollearon en los últimos 10s (ACTIVE_WINDOW_MS). Un celular pausado se pierde
+// la pregunta y sale de ese conteo, así que la pausa por inactividad es una red
+// de seguridad para partidas abandonadas, más larga que un lobby o una
+// explicación normal. Con la pestaña oculta sigue polleando un rato (cambiar de
+// app un momento no lo saca del conteo).
+const IDLE_MS = 30 * 60 * 1000;
+const HIDDEN_GRACE_MS = 5 * 60 * 1000;
 
 interface PlayState {
   status: string;
@@ -78,20 +88,18 @@ const PlayGame: React.FC = () => {
     setReady(true);
   }, [code]);
 
-  // Polling cada 1.5s
-  useEffect(() => {
-    if (!token || kicked) return;
-    let active = true;
-    const tick = async () => {
+  // Polling cada 1.5s. Se corta en el podio final y se pausa con la pestaña
+  // oculta, para no mantener despierta la base (ver IDLE_MS y HIDDEN_GRACE_MS).
+  const polling = usePolling(
+    async () => {
       try {
         const res = await fetch(`/api/play/${code}/poll`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!active) return;
         if (res.status === 401) {
           setKicked(true);
           localStorage.removeItem(`game-${code}`);
-          return;
+          return { done: true };
         }
         if (res.ok) {
           const data: PlayState = await res.json();
@@ -104,18 +112,17 @@ const PlayGame: React.FC = () => {
             }
             timerTarget.current = Date.now() + (data.remainingMs || 0);
           }
+          return {
+            done: data.status === 'podium',
+            fingerprint: `${data.status}|${data.questionIndex}|${data.playerCount ?? ''}`,
+          };
         }
       } catch {
         /* reintenta en el próximo tick */
       }
-    };
-    tick();
-    const interval = setInterval(tick, 1500);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [token, code, kicked]);
+    },
+    { enabled: !!token && !kicked, intervalMs: 1500, idleMs: IDLE_MS, hiddenGraceMs: HIDDEN_GRACE_MS },
+  );
 
   // El resultado final se muestra recién cuando el host terminó de revelar
   // el podio en la pantalla grande (1ro a los ~7s), para no spoilear
@@ -317,6 +324,23 @@ const PlayGame: React.FC = () => {
             </div>
           )}
         </div>
+      </Screen>
+    );
+  }
+
+  if (polling.idle) {
+    return (
+      <Screen>
+        <button
+          type="button"
+          onClick={polling.resume}
+          className="anim-fade-in-scale"
+          style={{ background: 'none', border: 'none', font: 'inherit', color: '#fff', textAlign: 'center', cursor: 'pointer' }}
+        >
+          <div style={{ fontSize: 56, marginBottom: 14 }}>⏸</div>
+          <div style={{ fontSize: 26, fontWeight: 700 }}>Pausado por inactividad</div>
+          <div style={{ fontSize: 18, marginTop: 12, opacity: 0.85 }}>Tocá para volver al juego</div>
+        </button>
       </Screen>
     );
   }
