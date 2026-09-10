@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-// 5 minutos sin cambios en pantalla = pestaña olvidada abierta
+// 5 minutos sin cambios en pantalla ni interacción = pestaña olvidada abierta
 const DEFAULT_IDLE_MS = 5 * 60 * 1000;
 
 export interface PollOutcome {
@@ -14,19 +14,22 @@ interface PollingOptions {
   enabled: boolean;
   intervalMs: number;
   idleMs?: number;
+  // Cuánto sigue polleando con la pestaña oculta antes de pausarse (0 = enseguida)
+  hiddenGraceMs?: number;
 }
 
 // Polling que no mantiene despierta la base de más (Neon cobra por horas de
 // compute encendido y lo apaga recién a los 5 min sin consultas):
 // - se corta cuando el tick informa que el juego terminó
-// - se pausa mientras la pestaña está oculta y retoma al volver a ella
-// - se pausa si el estado no cambia en idleMs; `idle` queda en true hasta `resume()`
+// - se pausa con la pestaña oculta (pasado hiddenGraceMs) y retoma al volver a ella
+// - se pausa si en idleMs no cambia lo que se ve ni hay toques o teclas;
+//   `idle` queda en true hasta `resume()`
 // Los ticks no se superponen: el próximo se agenda cuando termina el anterior.
-export function usePolling(tick: () => Promise<PollOutcome | undefined>, { enabled, intervalMs, idleMs = DEFAULT_IDLE_MS }: PollingOptions) {
+export function usePolling(tick: () => Promise<PollOutcome | undefined>, { enabled, intervalMs, idleMs = DEFAULT_IDLE_MS, hiddenGraceMs = 0 }: PollingOptions) {
   const [idle, setIdle] = useState(false);
   const tickRef = useRef(tick);
   tickRef.current = tick;
-  const lastChange = useRef(Date.now());
+  const lastActivity = useRef(Date.now());
 
   useEffect(() => {
     if (!enabled || idle) return;
@@ -34,15 +37,20 @@ export function usePolling(tick: () => Promise<PollOutcome | undefined>, { enabl
     let running = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let lastFingerprint: string | undefined;
-    lastChange.current = Date.now();
+    let hiddenSince: number | null = document.hidden ? Date.now() : null;
+    lastActivity.current = Date.now();
 
     const clear = () => {
       if (timer) clearTimeout(timer);
       timer = null;
     };
+    const markActivity = () => {
+      lastActivity.current = Date.now();
+    };
+    const pausedByVisibility = () => hiddenSince !== null && Date.now() - hiddenSince >= hiddenGraceMs;
 
     const run = async () => {
-      if (!active || running || document.hidden) return;
+      if (!active || running || pausedByVisibility()) return;
       clear();
       running = true;
       const startedAt = Date.now();
@@ -61,38 +69,44 @@ export function usePolling(tick: () => Promise<PollOutcome | undefined>, { enabl
       }
       if (outcome?.fingerprint !== undefined && outcome.fingerprint !== lastFingerprint) {
         lastFingerprint = outcome.fingerprint;
-        lastChange.current = Date.now();
+        markActivity();
       }
-      if (Date.now() - lastChange.current > idleMs) {
+      if (Date.now() - lastActivity.current > idleMs) {
         setIdle(true);
         return;
       }
-      if (!document.hidden) timer = setTimeout(run, Math.max(0, intervalMs - (Date.now() - startedAt)));
+      if (!pausedByVisibility()) timer = setTimeout(run, Math.max(0, intervalMs - (Date.now() - startedAt)));
     };
 
     const onVisibilityChange = () => {
       if (document.hidden) {
-        clear();
+        hiddenSince = Date.now();
       } else {
-        lastChange.current = Date.now(); // volver a la pestaña cuenta como actividad
+        hiddenSince = null;
+        markActivity(); // volver a la pestaña cuenta como actividad
         run();
       }
     };
 
     document.addEventListener('visibilitychange', onVisibilityChange);
+    // Tocar o tipear también (ej: "Siguiente" en el host durante la cuenta regresiva)
+    document.addEventListener('pointerdown', markActivity);
+    document.addEventListener('keydown', markActivity);
     run();
     return () => {
       active = false;
       clear();
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('pointerdown', markActivity);
+      document.removeEventListener('keydown', markActivity);
     };
-  }, [enabled, idle, intervalMs, idleMs]);
+  }, [enabled, idle, intervalMs, idleMs, hiddenGraceMs]);
 
   const resume = useCallback(() => setIdle(false), []);
 
   // Tick inmediato por fuera del ciclo (ej: después de que el host avanza de fase)
   const pollNow = useCallback(async () => {
-    lastChange.current = Date.now();
+    lastActivity.current = Date.now();
     await tickRef.current();
   }, []);
 

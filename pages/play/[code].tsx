@@ -6,6 +6,15 @@ import { usePolling } from '../../hooks/usePolling';
 
 const OPTION_COLORS = ['#e21b3c', '#1368ce', '#d89e00', '#26890c'];
 
+// El servidor cierra la pregunta cuando respondieron todos los jugadores que
+// pollearon en los últimos 10s (ACTIVE_WINDOW_MS). Un celular pausado se pierde
+// la pregunta y sale de ese conteo, así que mientras la partida sigue viva no se
+// pausa: la inactividad es solo una red de seguridad para partidas abandonadas,
+// y con la pestaña oculta sigue polleando un rato (cambiar de app un momento no
+// lo saca del conteo).
+const IDLE_MS = 3 * 60 * 60 * 1000;
+const HIDDEN_GRACE_MS = 5 * 60 * 1000;
+
 interface PlayState {
   status: string;
   quizName: string;
@@ -80,7 +89,7 @@ const PlayGame: React.FC = () => {
   }, [code]);
 
   // Polling cada 1.5s. Se corta en el podio final y se pausa con la pestaña
-  // oculta o inactiva, para no mantener despierta la base.
+  // oculta, para no mantener despierta la base (ver IDLE_MS y HIDDEN_GRACE_MS).
   const polling = usePolling(
     async () => {
       try {
@@ -112,7 +121,7 @@ const PlayGame: React.FC = () => {
         /* reintenta en el próximo tick */
       }
     },
-    { enabled: !!token && !kicked, intervalMs: 1500 },
+    { enabled: !!token && !kicked, intervalMs: 1500, idleMs: IDLE_MS, hiddenGraceMs: HIDDEN_GRACE_MS },
   );
 
   // El resultado final se muestra recién cuando el host terminó de revelar
