@@ -109,6 +109,9 @@ const PlayGame: React.FC = () => {
               lastQuestionId.current = data.question.id;
               setSelected([]);
               setSent(false);
+              // Un rechazo de la pregunta anterior (p. ej. respondida justo al
+              // cerrarse) no debe quedar visible en las siguientes.
+              setError(null);
             }
             timerTarget.current = Date.now() + (data.remainingMs || 0);
           }
@@ -171,6 +174,7 @@ const PlayGame: React.FC = () => {
   const sendAnswer = async (optionIds: number[]) => {
     if (sent || !state?.question) return;
     setSent(true);
+    setError(null);
     try {
       const res = await fetch(`/api/play/${code}/answer`, {
         method: 'POST',
