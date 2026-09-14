@@ -109,6 +109,9 @@ const PlayGame: React.FC = () => {
               lastQuestionId.current = data.question.id;
               setSelected([]);
               setSent(false);
+              // Un rechazo de la pregunta anterior (p. ej. respondida justo al
+              // cerrarse) no debe quedar visible en las siguientes.
+              setError(null);
             }
             timerTarget.current = Date.now() + (data.remainingMs || 0);
           }
@@ -170,7 +173,9 @@ const PlayGame: React.FC = () => {
 
   const sendAnswer = async (optionIds: number[]) => {
     if (sent || !state?.question) return;
+    const questionId = state.question.id;
     setSent(true);
+    setError(null);
     try {
       const res = await fetch(`/api/play/${code}/answer`, {
         method: 'POST',
@@ -179,7 +184,7 @@ const PlayGame: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          questionId: state.question.id,
+          questionId,
           selectedOptionIds: optionIds,
         }),
       });
@@ -190,10 +195,15 @@ const PlayGame: React.FC = () => {
           localStorage.removeItem(`game-${code}`);
           return;
         }
+        // Con una conexión lenta la respuesta puede llegar cuando el polling ya
+        // pasó a la pregunta siguiente: ese rechazo es viejo y mostrarlo (o
+        // rehabilitar los botones) rompería la pregunta actual.
+        if (lastQuestionId.current !== questionId) return;
         setError(data.error || 'No se pudo enviar la respuesta.');
         setSent(false);
       }
     } catch {
+      if (lastQuestionId.current !== questionId) return;
       setSent(false);
     }
   };
